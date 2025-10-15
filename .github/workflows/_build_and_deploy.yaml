@@ -1,0 +1,74 @@
+on:
+    workflow_call:
+        inputs:
+            cf_project_name:
+                description: "Cloudflare Pages project name"
+                required: true
+                type: string
+            cf_deployment_cleanup_days:
+                description: "Cloudflare Pages previous deployments expiration days"
+                required: false
+                type: number
+                default: 60
+        secrets:
+            cf_account_id:
+                description: "Cloudflare Account ID"
+                required: true
+            cf_api_token:
+                description: "Cloudflare API Token"
+                required: true
+
+jobs:
+    deploy:
+        runs-on: ubuntu-24.04
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up Python
+              uses: actions/setup-python@v5
+              with:
+                  python-version: "3.12"
+
+            - name: Install Poetry
+              run: |
+                  curl -sSL https://install.python-poetry.org | python3 -
+                  echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+            - name: Install dependencies
+              run: poetry -n install --with docs --with notebooks
+
+            - name: Generate API documentation
+              run: |
+                  cd docs
+                  poetry run make apidoc
+
+            - name: Build documentation
+              run: |
+                  cd docs
+                  poetry run make html SPHINXOPTS="-W --keep-going"
+
+            # Copy custom headers
+            - run: cp ./ci/cf-pages-headers ./docs/build/html/_headers
+
+            # Copy custom redirects
+            - run: cp ./ci/cf-pages-redirects ./docs/build/html/_redirects
+
+            # Publish live
+            - name: Publish to Cloudflare Pages
+              uses: cloudflare/wrangler-action@v3
+              with:
+                  accountId: ${{ secrets.cf_account_id }}
+                  apiToken: ${{ secrets.cf_api_token }}
+                  command: pages deploy ./docs/build/html --project-name=${{ inputs.cf_project_name }}
+
+            # Delete old deployments
+            - name: Delete old deployments
+              uses: actions/github-script@v7
+              env:
+                  CF_ACCOUNT_ID: "${{ secrets.cf_account_id }}"
+                  CF_TOKEN: "${{ secrets.cf_api_token }}"
+              with:
+                  script: |
+                      const execute = require('./ci/delete-old-deployments.js');
+                      await execute('${{ inputs.cf_project_name }}', ${{ inputs.cf_deployment_cleanup_days }});
