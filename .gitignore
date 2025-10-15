@@ -1,0 +1,14 @@
+__pycache__/
+.venv
+.vscode/*
+poetry.lock
+.python-version
+
+docs/build/*
+docs/source/apidoc/api_autogen/*
+
+env/
+
+.python-version
+
+*.DS_Store
