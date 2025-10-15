@@ -1,0 +1,22 @@
+name: publish_preview
+
+on:
+    # Automatic publishing on push
+    #push:
+    #    branches:
+    #        - main
+    # Manually triggered publish
+    workflow_dispatch:
+
+jobs:
+    deploy:
+        uses: "./.github/workflows/_build_and_deploy.yaml"
+        with:
+            cf_project_name: "loom-api-docs-preview"
+            cf_deployment_cleanup_days: 30
+        secrets:
+            cf_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+            cf_api_token: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        concurrency:
+            group: ${{ github.workflow }}-${{ github.ref }}
+            cancel-in-progress: true
