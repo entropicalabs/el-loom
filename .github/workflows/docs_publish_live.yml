@@ -1,4 +1,4 @@
-name: publish_live
+name: Publish DOCs (LIVE)
 
 on:
     # Automatic publishing on push
