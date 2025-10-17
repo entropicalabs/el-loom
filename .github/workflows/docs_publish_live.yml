@@ -1,4 +1,4 @@
-name: Publish DOCs (LIVE)
+name: Publish DOCS (live)
 
 on:
     # Automatic publishing on push

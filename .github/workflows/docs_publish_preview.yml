@@ -1,4 +1,4 @@
-name: Publish DOCS (PREVIEW)
+name: Publish DOCS (preview)
 
 on:
     # Automatic publishing on push
