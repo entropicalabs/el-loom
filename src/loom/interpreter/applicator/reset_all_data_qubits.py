@@ -32,6 +32,9 @@ def reset_all_data_qubits(
     case of the Rotated Surface Code, initializing a Y state may require distillation
     for it to be fault-tolerant.
 
+    TODO: This function may need to reset the tracking of Pauli faults on the data
+    qubits.
+
     Parameters
     ----------
     interpretation_step : InterpretationStep
@@ -94,7 +97,7 @@ def reset_all_data_qubits(
     new_syndromes = generate_syndromes(
         interpretation_step=interpretation_step,
         stabilizers=relevant_stabs,
-        current_block_id=block.uuid,
+        block=block,
         stab_measurements=list(initialization_values),
     )
 

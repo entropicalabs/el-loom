@@ -8,13 +8,15 @@ Ltd.
 """
 
 from __future__ import annotations
-from enum import Enum
 from functools import reduce
 from typing import Optional, Union
 from uuid import uuid4
 import logging
+
 from pydantic import Field, field_validator, ValidationInfo
 from pydantic.dataclasses import dataclass
+
+from .channel import Channel, ChannelType
 from .utilities.serialization import apply_to_nested
 from .utilities.validation_tools import (
     uuid_error,
@@ -27,105 +29,6 @@ from .utilities.validation_tools import (
 
 logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
-
-
-class ChannelType(str, Enum):
-    """
-    The type of the channel: QUANTUM or CLASSICAL
-    More types should be added when we feel the need for it
-    """
-
-    QUANTUM = "quantum"
-    CLASSICAL = "classical"
-
-
-def create_default_label(channel_type: ChannelType):
-    """
-    Creates a default label for the channel.
-
-    Parameters
-    ----------
-    channel_type : ChannelType
-        The type of the channel: QUANTUM, ANCILLA or CLASSICAL
-
-    Returns
-    -------
-    str
-        The default label for the channel
-    """
-    match channel_type:
-        case ChannelType.QUANTUM:
-            return "data_qubit"
-        case ChannelType.CLASSICAL:
-            return "classical_bit"
-        case _:
-            raise ValueError(f"Channel type {type} not recognized")
-
-
-@dataclass(**dataclass_params)
-class Channel:
-    """
-    Identifies information channels connecting the Circuit elements: examples are
-    classical or quantum bit channels
-
-    Parameter
-    ---------
-    type: ChannelType
-        The type of the channel: QUANTUM or CLASSICAL, default is QUANTUM
-
-    label: str
-        The label of the channel, allowing it to be grouped in a user friendly way, E.g.
-        can be "red", "ancilla_qubit" or "my_favourite_qubit"
-
-    id: str
-        The unique identifier of the channel
-    """
-
-    type: ChannelType = Field(default=ChannelType.QUANTUM)
-    label: Optional[str] = Field(default=None, validate_default=True)
-    id: str = Field(default_factory=lambda: str(uuid4()))
-    _validate_uuid = field_validator("id")(uuid_error)
-
-    @field_validator("label", mode="after")
-    @classmethod
-    def set_default_label(cls, v: str, info: ValidationInfo) -> str:
-        """
-        Set the default label based on the type of the channel, according to
-        the following scheme:
-        ChannelType.QUANTUM:   "data_qubit"
-        ChannelType.ANCILLA:   "ancilla_qubit"
-        ChannelType.CLASSICAL: "classical_bit"
-        """
-        if v is None and "type" in info.data.keys():
-            v = create_default_label(info.data["type"])
-        return v
-
-    def __eq__(self, other):
-        if isinstance(other, Channel):
-            return (self.type, self.id) == (other.type, other.id)
-        return NotImplemented
-
-    def __hash__(self) -> int:
-        return hash((self.type, self.id))
-
-    def is_quantum(self) -> bool:
-        """Check if the channel is a quantum channel.
-
-        Returns
-        -------
-        bool
-            True if the channel is a quantum channel, False otherwise.
-        """
-        return self.type == ChannelType.QUANTUM
-
-    def is_classical(self) -> bool:
-        """Check if the channel is a classical channel.
-        Returns
-        -------
-        bool
-            True if the channel is a classical channel, False otherwise.
-        """
-        return self.type == ChannelType.CLASSICAL
 
 
 @dataclass(**dataclass_params)
@@ -172,6 +75,9 @@ class Circuit:
     channels: tuple[Channel, ...] = Field(default_factory=tuple, validate_default=True)
     duration: Optional[int] = Field(default=None, validate_default=True)
     id: str = Field(default_factory=lambda: str(uuid4()))
+
+    # Validation functions
+
     _validate_name = field_validator("name")(no_name_error)
     _validate_uuid = field_validator("id")(uuid_error)
 
@@ -187,10 +93,14 @@ class Circuit:
             return ((circuit,),)
         if circuit in ((), []):
             return ()
-        if circuit and all((isinstance(gate, Circuit) for gate in circuit)):
+        # The default interpretation of a list of circuit input is sequential execution
+        # of the gates in the list.
+        if circuit and all(isinstance(gate, Circuit) for gate in circuit):
+            # Add empty tuples to match the gates durations
             return reduce(
                 lambda x, y: x + ((y,),) + ((),) * (y.duration - 1), circuit, ()
             )
+
         return circuit
 
     _validate_channels_tuple = field_validator("channels", mode="before")(ensure_tuple)
@@ -205,6 +115,7 @@ class Circuit:
         gates are scheduled on the same channel at the same time.
         """
         occupancy_dict = {}
+
         for tick, time_step in enumerate(circuit):
             for gate in time_step:
                 for channel in gate.channels:
@@ -212,8 +123,11 @@ class Circuit:
                         occupancy_dict[channel.id] = tick + gate.duration - 1
                     else:
                         raise ValueError(
-                            f"Error while setting up composite circuit: Channel {channel.label}({channel.id[0:6]}..) is subject to more than one operation at tick {tick}."
+                            "Error while setting up composite circuit: Channel "
+                            f"{channel.label}({channel.id[0:6]}..) is subject to more "
+                            f"than one operation at tick {tick}."
                         )
+
         return circuit
 
     @field_validator("channels")
@@ -249,25 +163,35 @@ class Circuit:
                 for circ in tick
                 for channel in circ.channels
             }
-            typing_order = (ChannelType.QUANTUM, ChannelType.CLASSICAL)
+            # Order channels by type
+            typing_order = (
+                ChannelType.QUANTUM,
+                ChannelType.CLASSICAL,
+            )
             ordered_channels = sorted(
                 all_channels, key=lambda x: typing_order.index(x.type)
             )
             return tuple(ordered_channels)
 
         circuit = retrieve_field("circuit", values)
+
         match (len(circuit) == 0, len(channels) == 0):
-            case [True, True]:
+            # (True, _) if base gate (no nested circuits)
+            case (True, True):
                 return (Channel(),)
-            case [True, False]:
+            case (True, False):
                 return distinct_error(channels)
-            case [False, True]:
+            case (False, True):
                 return derive_channels(circuit)
-            case [False, False]:
+            case (False, False):
                 if set(derive_channels(circuit)) != set(channels):
                     raise ValueError(
-                        "\nError while setting up composite circuit: Provided channels do not match the channels of the sub-circuits. \nMake sure that the sub-circuits channel ids and types match the ones provided.\n"
+                        "\nError while setting up composite circuit: Provided channels"
+                        " do not match the channels of the sub-circuits. \nMake sure"
+                        " that the sub-circuits channel ids and types match the ones"
+                        " provided.\n"
                     )
+
         return channels
 
     @field_validator("duration")
@@ -284,33 +208,42 @@ class Circuit:
             end tick of each operation and return the maximum.
             """
             return max(
+                # flatten to a 1D list
                 reduce(
                     lambda x, y: x + y,
                     map(
+                        # calculate the end tick of each operation
                         lambda tick: [op.duration + tick[0] for op in tick[1]],
                         enumerate(circuit),
                     ),
                     [],
                 )
-                + [len(circuit)]
+                + [len(circuit)]  # Include empty time steps length if it's larger
             )
 
         circuit = retrieve_field("circuit", info)
+
         match (not circuit, duration is None):
-            case [True, True]:
+            # (True, _) if base gate (no nested circuits)
+            case (True, True):
                 return 1
-            case [True, False]:
+            case (True, False):
                 if duration < 1:
                     raise ValueError("Duration must be a positive integer.")
-            case [False, True]:
+            case (False, True):
                 return derive_duration(circuit)
-            case [False, False]:
+            case (False, False):
                 derived_duration = derive_duration(circuit)
                 if derived_duration != duration:
                     raise ValueError(
-                        f"Error while setting up composite circuit: Provided duration ({duration}) does not match the duration of the sub-circuits ({derived_duration})."
+                        f"Error while setting up composite circuit: Provided duration "
+                        f"({duration}) does not match the duration of the sub-circuits "
+                        f"({derived_duration})."
                     )
+
         return duration
+
+    # Methods
 
     @classmethod
     def as_gate(
@@ -373,7 +306,10 @@ class Circuit:
             if cidx in cmap.keys():
                 if cmap[cidx].type != ctype:
                     raise ValueError(
-                        f"Provided channel indices are not consistent with respect to their types. Offending channel {cidx} has type {ctype} but has previously been used with a channel of type {cmap[cidx].type}."
+                        f"Provided channel indices are not consistent with respect"
+                        f" to their types. Offending channel {cidx} has type {ctype}"
+                        f" but has previously been used with a channel of type "
+                        f"{cmap[cidx].type}."
                     )
                 return cmap[cidx]
             new_chan = Channel(type=ctype)
@@ -387,10 +323,14 @@ class Circuit:
             """
             nr_prov_channels = len(circtup[1])
             nr_circ_channels = len(circtup[0].channels)
+
             if nr_prov_channels != nr_circ_channels:
                 raise ValueError(
-                    f"Provided number of channels {nr_prov_channels} does not match the number of channels {nr_circ_channels} in circuit {circtup[0].name}."
+                    f"Provided number of channels {nr_prov_channels} does not match the"
+                    f" number of channels {nr_circ_channels} in circuit "
+                    f"{circtup[0].name}."
                 )
+
             new_channels = [
                 make_chan(cidx, ctype, cmap)
                 for cidx, ctype in zip(
@@ -399,14 +339,18 @@ class Circuit:
                     strict=True,
                 )
             ]
+
             return circtup[0].clone(new_channels)
 
         if circuit is None:
             circuit = []
         if isinstance(circuit, tuple) or len(circuit) < 2:
             raise ValueError(
-                "Error while creating circuit via from_circuit(): The circuit must be a list of circuits. If the intention is to copy a circuit to deal with Channel objects directly, use the clone() method instead."
+                "Error while creating circuit via from_circuit(): The circuit must be a "
+                "list of circuits. If the intention is to copy a circuit to deal with "
+                "Channel objects directly, use the clone() method instead."
             )
+
         cmap = {}
         new_circ = apply_to_nested(circuit, make_circ, cmap)
         return cls(name, new_circ)
@@ -451,7 +395,8 @@ class Circuit:
                 if index < len(new_channels):
                     if old_channel.is_quantum() != new_channels[index].is_quantum():
                         raise ValueError(
-                            "Error while cloning circuit: CLASSICAL channels cannot be assigned to QUANTUM channels and vice versa."
+                            "Error while cloning circuit: CLASSICAL channels cannot be"
+                            " assigned to QUANTUM channels and vice versa."
                         )
                     return new_channels[index]
                 return Channel(type=old_channel.type)
@@ -464,8 +409,9 @@ class Circuit:
                     enumerate(old_channels),
                 )
             )
-            old_chan_ids = list(map(lambda channel: channel.id, old_channels))
-            return dict(zip(old_chan_ids, new_channels, strict=True))
+            old_ids = list(map(lambda channel: channel.id, old_channels))
+
+            return dict(zip(old_ids, new_channels, strict=True))
 
         def update_sub_circuit(
             circuit: Circuit, channel_map: dict[str, Circuit]
@@ -490,13 +436,13 @@ class Circuit:
             return Circuit(
                 circuit.name,
                 tuple(
-                    (
-                        tuple((update_sub_circuit(circ, channel_map) for circ in tick))
-                        for tick in circuit.circuit
-                    )
+                    tuple(update_sub_circuit(circ, channel_map) for circ in tick)
+                    for tick in circuit.circuit
                 ),
                 new_channels,
                 circuit.duration,
+                # channels can't be infered here, since order of channels in this list
+                # matters.
             )
 
         if channels is None:
@@ -544,18 +490,29 @@ class Circuit:
             The flattened circuit
         """
         flat_circuit = []
+
+        # This is the Depth First Search (DFS) traversal of a tree:
+        # https://en.wikipedia.org/wiki/Tree_traversal#Depth-first_search
         queue = [self]
         while len(queue) > 0:
             next_circuit = queue.pop()
-            if len(next_circuit.circuit) == 0:
+            if len(next_circuit.circuit) == 0:  # If the circuit does not contain
+                # subcircuits, it must be a physical gate and it is added to the
+                # flattened circuit array
                 flat_circuit.append(next_circuit)
             else:
                 for tick in next_circuit.circuit:
                     for circ in tick:
-                        if circ != ():
-                            queue.append(circ)
+                        if circ != ():  # If it is not an empty tuple
+                            queue.append(circ)  # Add subcircuits to queue
+        # The circuit list needs to be reversed because of the last in first out queue
         flat_circuit.reverse()
-        return Circuit(self.name, circuit=flat_circuit, channels=self.channels)
+
+        return Circuit(
+            self.name,
+            circuit=flat_circuit,
+            channels=self.channels,
+        )
 
     @classmethod
     def unroll(cls, circuit: Circuit) -> tuple[tuple[Circuit, ...], ...]:
@@ -573,11 +530,17 @@ class Circuit:
         unrolled_circuit_time_sequence = [
             () for _ in range(max(len(circuit.circuit), circuit.duration))
         ]
+        # Contains the current sub-circuits that need to be unrolled and the time index
+        # within unrolled_circuit_time_sequence
         stack = [(0, circuit)]
+
+        # Traverse the recursive circuit using a Depth First Search algorithm
         while stack:
             time, circ = stack.pop()
-            if not circ.circuit:
+            # If the circuit is empty, it is a base gate and can be added to the final sequence
+            if not circ.circuit:  # Base gate
                 unrolled_circuit_time_sequence[time] += (circ,)
+            # Else it's a composite circuit and is added to the stack with the associated time index
             else:
                 for i, tick in enumerate(circ.circuit):
                     for sub_circ in reversed(tick):
@@ -609,19 +572,31 @@ class Circuit:
         bool
             True if the two circuits are equivalent, False otherwise
         """
+        # Create a mapping from channel ids from the first circuit to the channel ids
+        # of the second circuit. This dict is constructed iteratively in the for loop.
+        # For every gate, if the included channels are not contained in the map yet,
+        # they are added to the map. If the channel is already in the map, the channel
+        # of the second circuit is checked to correspond to the same qubit as the
+        # channel of the first circuit. If not, the circuits are not equivalent.
+
+        # We allow uneven lengths in the zips because this is an equality check
         channel_map = {}
         if isinstance(other, Circuit):
+            # Unroll the circuits to a tuple of tuples of base gates
             circ_sequence1 = Circuit.unroll(self)
             circ_sequence2 = Circuit.unroll(other)
             if len(circ_sequence1) != len(circ_sequence2):
                 log.info("The two circuits have a different number of time slices.")
                 log.debug("%s != %s\n", len(circ_sequence1), len(circ_sequence2))
                 return False
+
+            # Check every time slice of the two circuits
             for time_step, (time_slice1, time_slice2) in enumerate(
                 zip(circ_sequence1, circ_sequence2, strict=False)
             ):
                 if len(time_slice1) == 0 and len(time_slice2) == 0:
-                    continue
+                    continue  # Both time slices are empty tuples
+
                 if len(time_slice1) != len(time_slice2):
                     log.info(
                         "The two circuits have a different number of gates in a time slice."
@@ -633,18 +608,22 @@ class Circuit:
                         time_slice1,
                         time_slice2,
                     )
-                    return False
+                    return False  # Unequal tuple length
+
+                # Sort the gates by name within a time slice to compare them
                 for gate1, gate2 in zip(
                     sorted((gate for gate in time_slice1), key=lambda x: x.name),
                     sorted((gate for gate in time_slice2), key=lambda x: x.name),
                     strict=False,
                 ):
+                    # The two timeslices must have the same gates (names)
                     if gate1.name != gate2.name:
                         log.info(
                             "The two circuits have different gates in a time slice."
                         )
                         log.debug(
-                            "For time steps %s: %s and %s: %s, \n    %s != %s for gates %s and %s\n",
+                            "For time steps %s: %s and %s: %s, \n"
+                            "    %s != %s for gates %s and %s\n",
                             time_step,
                             time_slice1,
                             time_step,
@@ -655,6 +634,11 @@ class Circuit:
                             gate2,
                         )
                         return False
+
+                    # Check whether the channels are the same.
+                    # This is done by comparing the sets of channel ids of the two circuits
+                    # where for the first circuit, the ids are translated to the ids of the
+                    # second circuit using the channel map
                     for ch1, ch2 in zip(gate1.channels, gate2.channels, strict=False):
                         if ch1.id not in channel_map:
                             channel_map[ch1.id] = ch2.id
@@ -668,19 +652,31 @@ class Circuit:
                             [(ch.type, ch.label) for ch in gate1.channels],
                         )
                         return False
+
+            # No differences found, the circuits are equivalent
             return True
+
+        # Else, cannot compare the circuit for equivalence with another object with is
+        # not a `Circuit`
         return NotImplemented
 
     def __repr__(self):
         n_ticks = len(self.circuit)
+        # Construct the title string
         if n_ticks == 0:
+            # If the circuit is empty, it is a base gate
             title = f"{self.name} (base gate)\n"
         else:
+            # If the circuit is not empty, it is a composite circuit
+            # The title is the name of the circuit and the number of ticks
             title = f"{self.name} ({n_ticks} ticks)\n"
         tick_str = title
         for i, tick in enumerate(self.circuit):
+            # Omit ticks occupied by empty tuples or lower level circuits
+            # (i.e. not base gates)
             if len(tick) != 0:
-                tick_str += f"{i}: {' '.join((gate.name for gate in tick))}\n"
+                tick_str += f"{i}: {' '.join(gate.name for gate in tick)}\n"
+        # Delete the last newline character
         tick_str = tick_str[:-1]
         return tick_str
 
@@ -694,7 +690,7 @@ class Circuit:
             tick_str += f"{i}: "
             for gate in tick:
                 tick_str += f"{gate.name} - "
-                tick_str += f"{' '.join((str(chan.label) for chan in gate.channels))}"
+                tick_str += f"{' '.join(str(chan.label) for chan in gate.channels)}"
                 tick_str += "\n"
         return tick_str
 
@@ -789,33 +785,55 @@ class Circuit:
         tuple[tuple[Circuit, ...], ...]
             The padded circuit time sequence.
         """
+        # Create a new time sequence
         padded_circuit_time_sequence = ()
+
+        # Keep track of occupied channels and for how long they are being occupied
         occupancy_dictionary = {}
         for tick in circuit_time_sequence:
+            # Find the occupancy of the current tick
             current_tick_occupancy = {
                 channel.label: circuit.duration
                 for circuit in tick
                 for channel in circuit.channels
             }
+            # Find the channels that are occupied both in the current tick and the previous ticks
             conflicting_channels = set(occupancy_dictionary.keys()).intersection(
                 set(current_tick_occupancy.keys())
             )
+            # If there are conflicting channels, add padding accounting for the minimum
+            # time required to remove conflicts and define the duration to deduct
+            # from the occupancy_dictionary
             if conflicting_channels:
                 duration = max(
-                    (occupancy_dictionary[channel] for channel in conflicting_channels)
+                    occupancy_dictionary[channel] for channel in conflicting_channels
                 )
                 padded_circuit_time_sequence += ((),) * (duration - 1)
+            # If there are no conflicting channels, the duration is 1
             else:
                 duration = 1
+
+            # Add the current tick after the padding
             padded_circuit_time_sequence += (tick,)
+
+            # Free channels in the current tick: i.e. channels that are still in use
+            # with gates from previous ticks, but are not involved with the current tick
+            # (no conflict). Their duration is being counted down in the occupancy dictionary.
             free_channels = set(occupancy_dictionary.keys()).difference(
                 set(current_tick_occupancy.keys())
             )
+            # Update the occupancy dictionary:
+            # We remove the free channels that belong to completed gates and add the new
+            # duration of the ones that are still occupied
             for channel in free_channels:
-                if (new_duration := (occupancy_dictionary.pop(channel) - duration)) > 0:
+                if (new_duration := occupancy_dictionary.pop(channel) - duration) > 0:
                     occupancy_dictionary[channel] = new_duration
+            # Add the newly occupied channels
             occupancy_dictionary.update(current_tick_occupancy)
+
+        # Add the padding for the last tick
         if occupancy_dictionary:
             duration = max(occupancy_dictionary.values())
             padded_circuit_time_sequence += ((),) * (duration - 1)
+
         return padded_circuit_time_sequence

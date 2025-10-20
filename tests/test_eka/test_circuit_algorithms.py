@@ -1,6 +1,14 @@
+"""
+Copyright (c) Entropica Labs Pte Ltd 2025.
+
+Use, distribution and reproduction of this program in its source or compiled
+form is prohibited without the express written consent of Entropica Labs Pte
+Ltd.
+
+"""
+
 import unittest
 import networkx as nx
-import numpy as np
 
 from loom.eka import (
     Circuit,
@@ -17,7 +25,10 @@ from loom.eka import (
 )
 
 
+# pylint: disable=invalid-name, too-many-instance-attributes, too-many-locals, too-many-statements, too-many-branches
 class TestCircuitAlgorithms(unittest.TestCase):
+    """Unit tests for the circuit algorithms in the eka module."""
+
     def setUp(self):
 
         self.distance_rep = 3
@@ -42,8 +53,8 @@ class TestCircuitAlgorithms(unittest.TestCase):
         self.T_steane = nx.Graph()
 
         data_supports_ham = [[0, 1, 2, 3], [1, 2, 4, 5], [2, 3, 5, 6]]
-        datas_ham = [i for i in range(7)]
-        checks_ham = [i for i in range(7, 10)]
+        datas_ham = list(range(7))
+        checks_ham = list(range(7, 10))
         self.nodes_hamming = [((i,), {"label": "check"}) for i in checks_ham] + [
             ((d,), {"label": "data"}) for d in datas_ham
         ]
@@ -122,7 +133,7 @@ class TestCircuitAlgorithms(unittest.TestCase):
             check_to_data_entangle = coloration_circuit(T)
             self.assertEqual(check_to_data_entangle, correct_entangle)
 
-    def test_cardinal_circuit(self):
+    def test_cardinal_circuit(self):  # pylint: disable=too-many-locals
         """Test the correct creation of a cardinal circuit from the Tanner Graph of
         a HGP code."""
 
@@ -215,7 +226,7 @@ class TestCircuitAlgorithms(unittest.TestCase):
             cardinal_checks = [edge[0] for edge in cardinal_edges]
 
             # Extract idling nodes
-            idle_nodes = [n for n in set(check_nodes) - set(cardinal_checks)]
+            idle_nodes = list(set(check_nodes) - set(cardinal_checks))
 
             # Add connectivity between check nodes and data nodes
             for edge in cardinal_edges:
@@ -283,10 +294,10 @@ class TestCircuitAlgorithms(unittest.TestCase):
         check_to_data = cardinal_circuit(T_random)
 
         # Check all check nodes are present
-        self.assertEqual(set(check_to_data.keys()), set(correct_check_to_data.keys()))
+        self.assertEqual(set(check_to_data), set(correct_check_to_data))
 
-        # Ensure connectivity is correct
-        for check_node in correct_check_to_data.keys():
+        # Ensure connectivity is correct, pylint: disable=consider-using-dict-items
+        for check_node in correct_check_to_data:
             self.assertEqual(
                 set(check_to_data[check_node]),
                 set(correct_check_to_data[check_node]),

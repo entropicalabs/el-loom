@@ -82,14 +82,14 @@ class Lattice:
     lattice_type: LatticeType = LatticeType.CUSTOM
 
     @property
-    def n_dimensions(self) -> int:  # pylint: disable=missing-function-docstring
+    def n_dimensions(self) -> int:
         """
         The dimension of the lattice, i.e. the number of lattice vectors.
         """
         return len(self.lattice_vectors)
 
     @property
-    def unit_cell_size(self) -> int:  # pylint: disable=missing-function-docstring
+    def unit_cell_size(self) -> int:
         """
         The size of the unit cell, i.e. the number of basis vectors.
         """
@@ -97,9 +97,8 @@ class Lattice:
 
     # Validation
     @field_validator("basis_vectors", mode="before")
-    def format_basis_vectors(
-        cls, basis_vectors: tuple
-    ):  # pylint: disable=no-self-argument
+    @classmethod
+    def format_basis_vectors(cls, basis_vectors: tuple):
         """
         Format the basis_vector input to also accept [] for 1-qubit unit cells.
         """
@@ -108,9 +107,8 @@ class Lattice:
         return basis_vectors
 
     @field_validator("basis_vectors", mode="after")
-    def basis_vectors_same_length(
-        cls, basis_vectors: tuple
-    ):  # pylint: disable=no-self-argument
+    @classmethod
+    def basis_vectors_same_length(cls, basis_vectors: tuple):
         """
         Validate that all basis vectors have the same length.
         """
@@ -121,9 +119,8 @@ class Lattice:
         return basis_vectors
 
     @field_validator("lattice_vectors", mode="after")
-    def lattice_vectors_same_length(
-        cls, lattice_vectors: tuple
-    ):  # pylint: disable=no-self-argument
+    @classmethod
+    def lattice_vectors_same_length(cls, lattice_vectors: tuple):
         """
         Validate that all lattice vectors have the same length.
         """
@@ -135,9 +132,8 @@ class Lattice:
         return lattice_vectors
 
     @field_validator("size", mode="after")
-    def size_right_dimension(
-        cls, size: int | None, values: ValidationInfo
-    ):  # pylint: disable=no-self-argument
+    @classmethod
+    def size_right_dimension(cls, size: int | None, values: ValidationInfo):
         """
         Validate that `size` has the right dimension, i.e. the size of the tuple has
         to be equal to the number of lattice vectors.
@@ -146,7 +142,7 @@ class Lattice:
         if size is None:
             return size
 
-        # If the lattice is not infinite , check that the size has the right dimension
+        # If the lattice is not infinite, check that the size has the right dimension
         n_dim = len(retrieve_field("lattice_vectors", values))
         if len(size) != n_dim:
             raise ValueError(
@@ -207,7 +203,7 @@ class Lattice:
             ]
         # Get all unit cells inside the specified region
         grids = np.meshgrid(*[range(x) for x in adapted_size], indexing="ij")
-        return list(zip(*[grid.flatten() for grid in grids], strict=True))
+        return list(zip(*[map(int, grid.flatten()) for grid in grids], strict=True))
 
     def all_qubits(
         self,
@@ -596,7 +592,6 @@ class Lattice:
 
         if anc > 0:
             basis_vectors = basis_vectors + (
-                # e95aeebda0c20930
                 cls._points_on_circle(anc, anc_radius)
                 + cls._points_on_circle(anc, anc_radius, disp=(0, 0.5 * cell_dist))
                 + cls._points_on_circle(anc, anc_radius, disp=(0.5 * cell_dist, 0))

@@ -14,6 +14,7 @@ from .base_operation import (
     BaseOperation,
 )
 from .code_operation import (
+    CodeOperation,
     Grow,
     Shrink,
     Merge,
@@ -27,5 +28,20 @@ from .code_operation import (
     LogicalZ,
     ResetAllAncillaQubits,
     ResetAllDataQubits,
-    CodeOperation,
+    StateInjection,
+    ConditionalLogicalX,
+    ConditionalLogicalY,
+    ConditionalLogicalZ,
 )
+from .logical_operation import (
+    Reset,
+    CNOT,
+    Hadamard,
+    Phase,
+    PhaseInverse,
+    X,
+    Y,
+    Z,
+    T,
+)
+from .logical_measurement import LogicalMeasurement

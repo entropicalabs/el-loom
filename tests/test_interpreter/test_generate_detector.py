@@ -1,3 +1,13 @@
+"""
+Copyright (c) Entropica Labs Pte Ltd 2025.
+
+Use, distribution and reproduction of this program in its source or compiled
+form is prohibited without the express written consent of Entropica Labs Pte
+Ltd.
+
+"""
+
+# pylint: disable= duplicate-code
 import unittest
 
 from loom.eka import Lattice, Stabilizer, Block, PauliOperator
@@ -5,7 +15,10 @@ from loom.interpreter import InterpretationStep, Syndrome, Detector
 from loom.interpreter.applicator import generate_detectors
 
 
+# pylint: disable=too-many-instance-attributes
 class TestGenerateDetectors(unittest.TestCase):
+    """Tests for the generate_detectors function."""
+
     def setUp(self):
         self.square_2d_lattice = Lattice.square_2d((10, 20))
         self.rot_surf_code_1 = Block(
@@ -97,7 +110,7 @@ class TestGenerateDetectors(unittest.TestCase):
             syndromes=self.reset_syndromes,
         )
 
-    def test_generate_detectors(self):
+        # Examples
         new_syndromes = tuple(
             Syndrome(
                 stabilizer=stab.uuid,
@@ -142,11 +155,15 @@ class TestGenerateDetectors(unittest.TestCase):
             == {"Z"}
         )
 
-        args_and_exepected_detectors = (
+        self.args_and_expected_detectors = (
             (  # Simple pairing in time (regular syndrome measurements)
                 {
-                    "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "old_syndromes": tuple(
+                        self.int_step_general_syndromes.get_prev_syndrome(
+                            syndrome.stabilizer, syndrome.block
+                        )
+                        for syndrome in new_syndromes
+                    ),
                     "new_syndromes": new_syndromes,
                     "interpretation_step": self.int_step_general_syndromes,
                 },
@@ -165,8 +182,12 @@ class TestGenerateDetectors(unittest.TestCase):
             ),
             (  # Pairing in space with empty syndromes (reset-like operation)
                 {
-                    "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "old_syndromes": tuple(
+                        self.int_step_reset_syndromes.get_prev_syndrome(
+                            syndrome.stabilizer, syndrome.block
+                        )
+                        for syndrome in new_syndromes
+                    ),
                     "new_syndromes": new_syndromes,
                     "interpretation_step": self.int_step_reset_syndromes,
                 },
@@ -186,8 +207,12 @@ class TestGenerateDetectors(unittest.TestCase):
             (
                 # Pairing in space for a (Z)measurement-like operation
                 {
-                    "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "old_syndromes": tuple(
+                        self.int_step_general_syndromes.get_prev_syndrome(
+                            syndrome.stabilizer, syndrome.block
+                        )
+                        for syndrome in final_round_syndromes
+                    ),
                     "new_syndromes": final_round_syndromes,
                     "interpretation_step": self.int_step_general_syndromes,
                 },
@@ -206,8 +231,13 @@ class TestGenerateDetectors(unittest.TestCase):
             ),
         )
 
-        for args, expected_detectors in args_and_exepected_detectors:
-            new_detectors = generate_detectors(**args)
+    def test_generate_detectors(self):
+        """Test the generation of detectors."""
+
+        for args, expected_detectors in self.args_and_expected_detectors:
+            int_step = args["interpretation_step"]
+            new_syndromes = args["new_syndromes"]
+            new_detectors = generate_detectors(int_step, new_syndromes)
             self.assertEqual(new_detectors, expected_detectors)
 
     def test_detector_generation_for_evolved_stabilizers(self):
@@ -243,12 +273,7 @@ class TestGenerateDetectors(unittest.TestCase):
         )
 
         # Generate the detectors for the new syndrome
-        detectors = generate_detectors(
-            int_step,
-            [self.rot_surf_code_2.stabilizers[0]],
-            self.rot_surf_code_2.uuid,
-            (new_syndrome,),
-        )
+        detectors = generate_detectors(int_step, (new_syndrome,))
 
         # Ensure that only one detector is created
         # and its size should be n_stabilizers_evolved + 1, containing the new syndrome

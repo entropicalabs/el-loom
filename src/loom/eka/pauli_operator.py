@@ -76,6 +76,24 @@ class PauliOperator:
             zip(other.data_qubits, other.pauli, strict=True)
         )
 
+    # Properties
+
+    @property
+    def weight(self) -> int:
+        """Number of qubits involved in the operator."""
+        return len(self.data_qubits)
+
+    @property
+    def pauli_type(self) -> str:
+        """Type of the Pauli operator: 'X', 'Y', or 'Z'."""
+        unique_paulis = set(self.pauli)
+        if len(unique_paulis) != 1:
+            raise ValueError(
+                "PauliOperator must consist of a single type of Pauli operator "
+                f"to determine its type, got {unique_paulis} instead."
+            )
+        return unique_paulis.pop()
+
     # Methods
     def as_signed_pauli_op(
         self, all_qubits: tuple[tuple[int, ...], ...]
@@ -150,7 +168,6 @@ class PauliOperator:
         """
         # Find the indexed_dqubits
         indexed_dqubits = np.union1d(
-            # 2719859d0deea02d
             np.where(signed_pauli_op.x != 0)[0],
             np.where(signed_pauli_op.z != 0)[0],
         )

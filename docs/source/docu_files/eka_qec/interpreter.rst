@@ -5,7 +5,7 @@ Interpretation
 
 Once we have created our logical algorithm in the form of an :class:`~loom.eka.eka.Eka` object, we can interpret it into a :class:`~loom.eka.circuit.Circuit` and other tools required for error correction.
 
-The machinery behind interpretation can be summed up with two constructs, the function :meth:`~loom.interpreter.interpreter.interpret_eka` and the dataclass :class:`~loom.interpreter.interpretation_step.InterpretationStep`. The latter is an accumulator object that will contain all variables we need to keep track of when constructing the physical circuit and construct the decoding pipeline. The former is a wrapper that interprets the entirety of an :class:`~loom.eka.eka.Eka` object and translates it to an :class:`~loom.interpreter.interpretation_step.InterpretationStep`.
+The machinery behind interpretation can be summed up with two constructs: the function :meth:`~loom.interpreter.interpreter.interpret_eka` and the dataclass :class:`~loom.interpreter.interpretation_step.InterpretationStep`. The latter is an accumulator object that will contain all variables we need to keep track of when constructing the physical circuit and the decoding pipeline. The former is a wrapper that interprets the entirety of an :class:`~loom.eka.eka.Eka` object and translates it to an :class:`~loom.interpreter.interpretation_step.InterpretationStep`.
 
 Usage
 ^^^^^
@@ -26,9 +26,9 @@ Currently, disabling :code:`debug_mode` disables the validation of intermediate 
 How does interpretation work?
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Internally, the wrapper :meth:`~loom.interpreter.interpreter.interpret_eka` iterates through all time slices of :code:`Eka.operations` and interpret every operations in a sequential manner. All relevant variables are stored within an :class:`~loom.interpreter.interpretation_step.InterpretationStep` object that accumulates all the changes.
+Internally, the wrapper :meth:`~loom.interpreter.interpreter.interpret_eka` iterates through all time slices of :code:`Eka.operations` and interprets every operation in a sequential manner. All relevant variables are stored within an :class:`~loom.interpreter.interpretation_step.InterpretationStep` object that accumulates all the changes.
 
-It is important to note that certain processes like :class:`~interpreter.detector.Detector` creation is dependent on different fields of :class:`~loom.interpreter.interpretation_step.InterpretationStep` and one should be very careful when writing down their own interpretation functions. See :ref:`interpretation_step` for more details.
+It is important to note that certain processes like :class:`~interpreter.detector.Detector` creation are dependent on different fields of :class:`~loom.interpreter.interpretation_step.InterpretationStep` and one should be very careful when writing down their own interpretation functions. See :ref:`interpretation_step` for more details.
 
 Automatic dispatch
 ------------------

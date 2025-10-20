@@ -9,7 +9,7 @@ Ltd.
 
 import json
 
-from pydantic.dataclasses import dataclass
+from pydantic.dataclasses import dataclass, Field
 from loom.eka.utilities import dataclass_params
 
 from .syndrome import Syndrome
@@ -31,6 +31,7 @@ class Detector:
     """
 
     syndromes: tuple[Syndrome, ...]
+    labels: dict[str, str | tuple[int, ...] | int] = Field(default_factory=dict)
 
     @property
     def measurements(self) -> tuple[Cbit, ...]:
@@ -86,3 +87,17 @@ class Detector:
         """
         stab_ids = tuple(syndrome.stabilizer for syndrome in self.syndromes)
         return stab_ids
+
+    def __eq__(self, other: "Detector") -> bool:
+        if not isinstance(other, Detector):
+            raise NotImplementedError(
+                f"Cannot compare Detector with {type(other)} object."
+            )
+        return set(self.syndromes) == set(other.syndromes)
+
+    def __repr__(self) -> str:
+        syndrome_repr = ", ".join(repr(syndrome) for syndrome in self.syndromes)
+        return f"Detector(Syndromes: ({syndrome_repr}), Labels: {self.labels})"
+
+    def __hash__(self):
+        return hash(self.syndromes)

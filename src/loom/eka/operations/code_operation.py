@@ -14,10 +14,12 @@ from pydantic import Field, field_validator
 
 
 from .base_operation import Operation
+from .logical_measurement import LogicalMeasurement
 from ..utilities import (
     SingleQubitPauliEigenstate,
     Direction,
     Orientation,
+    ResourceState,
     dataclass_params,
     larger_than_zero_error,
 )
@@ -41,7 +43,7 @@ class CodeOperation(Operation):
     @property
     def _inputs(self):
         """
-        Standardized way to access the input block(es) names.
+        Standardized way to access the input block(s) names.
 
         Returns
         -------
@@ -58,7 +60,7 @@ class CodeOperation(Operation):
     @property
     def _outputs(self):
         """
-        Standardized way to access the output block(es) names.
+        Standardized way to access the output block(s) names.
 
         Returns
         -------
@@ -340,3 +342,103 @@ class Split(CodeOperation):
     _position_error = field_validator("split_position", mode="before")(
         partial(larger_than_zero_error, arg_name="split_position")
     )
+
+
+@dataclass(**dataclass_params)
+class StateInjection(CodeOperation):
+    """
+    Inject the given resource state into the specified block. This operation resets the
+    central qubit of the block into the specified resource state and maximizes the
+    number of stabilizers that can be initialized in a deterministic way.
+
+    E.g. a T state injection in a RotatedSurfaceCode block will reset the central qubit
+    into the T state and reset the rest of the data qubits into four quadrants,
+    such that two quadrants are in the ``|0⟩`` state and two quadrants are in the
+    ``|+⟩`` state. This ensures that the Z stabilizer measurements are deterministic in
+    the ``|0⟩`` quadrants and the X stabilizer measurements are deterministic in the
+    ``|+⟩`` quadrants.
+
+    Parameters
+    ----------
+    input_block_name : str
+        Name of the block to inject the resource state into.
+    resource_state : ResourceState
+        The resource state to inject into the block. This can be one of the following:
+        - ResourceState.T: T state
+        - ResourceState.S: S state
+    """
+
+    input_block_name: str
+    resource_state: ResourceState
+
+
+@dataclass(**dataclass_params)
+class ConditionalLogicalX(CodeOperation):
+    """
+    Apply a conditional logical X operator to a block.
+
+    Parameters
+    ----------
+    input_block_name : str
+        Name of the block where the logical operator should be applied.
+    logical_qubit : int | None, optional
+        Index of the logical qubit inside the specified block which should be acted on.
+        For blocks with a single logical qubit, this parameter does not need to be
+        provided. Then by default the index 0 is chosen for this single logical qubit.
+        For blocks with multiple logical qubits, this parameter is required.
+    condition : LogicalMeasurement | None, optional
+        Condition for logical pauli operation to be applied based on the value of the
+        LogicalMeasurement provided.
+    """
+
+    input_block_name: str
+    condition: LogicalMeasurement
+    logical_qubit: int = Field(default=0)
+
+
+@dataclass(**dataclass_params)
+class ConditionalLogicalY(CodeOperation):
+    """
+    Apply a conditional logical Y operator to a block.
+
+    Parameters
+    ----------
+    input_block_name : str
+        Name of the block where the logical operator should be applied.
+    logical_qubit : int | None, optional
+        Index of the logical qubit inside the specified block which should be acted on.
+        For blocks with a single logical qubit, this parameter does not need to be
+        provided. Then by default the index 0 is chosen for this single logical qubit.
+        For blocks with multiple logical qubits, this parameter is required.
+    condition : LogicalMeasurement
+        Condition for logical pauli operation to be applied based on the value of the
+        LogicalMeasurement provided.
+    """
+
+    input_block_name: str
+    condition: LogicalMeasurement
+    logical_qubit: int = Field(default=0)
+
+
+@dataclass(**dataclass_params)
+class ConditionalLogicalZ(CodeOperation):
+    """
+    Apply a conditional logical Z operator to a block.
+
+    Parameters
+    ----------
+    input_block_name : str
+        Name of the block where the logical operator should be applied.
+    logical_qubit : int | None, optional
+        Index of the logical qubit inside the specified block which should be acted on.
+        For blocks with a single logical qubit, this parameter does not need to be
+        provided. Then by default the index 0 is chosen for this single logical qubit.
+        For blocks with multiple logical qubits, this parameter is required.
+    condition : LogicalMeasurement
+        Condition for logical pauli operation to be applied based on the value of the
+        LogicalMeasurement provided.
+    """
+
+    input_block_name: str
+    condition: LogicalMeasurement
+    logical_qubit: int = Field(default=0)

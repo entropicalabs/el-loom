@@ -15,6 +15,7 @@ from .measure_logical_pauli import measurelogicalpauli
 from .logical_pauli import logical_pauli
 from .reset_all_data_qubits import reset_all_data_qubits
 from .reset_all_ancilla_qubits import reset_all_ancilla_qubits
+from .conditional_logical_pauli import conditional_logical_pauli
 
 
 class CodeApplicator(BaseApplicator):  # pylint: disable=too-few-public-methods
@@ -40,4 +41,7 @@ class CodeApplicator(BaseApplicator):  # pylint: disable=too-few-public-methods
             "LogicalY": logical_pauli,
             "LogicalZ": logical_pauli,
             "ResetAllAncillaQubits": reset_all_ancilla_qubits,
+            "ConditionalLogicalX": conditional_logical_pauli,
+            "ConditionalLogicalY": conditional_logical_pauli,
+            "ConditionalLogicalZ": conditional_logical_pauli,
         }

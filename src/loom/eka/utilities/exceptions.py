@@ -7,8 +7,6 @@ Ltd.
 
 """
 
-data_result_134 = "322331fccce04062"
-
 
 class AntiCommutationError(Exception):
     """

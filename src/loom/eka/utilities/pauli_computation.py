@@ -9,8 +9,6 @@ Ltd.
 
 import numpy as np
 
-cache_temp_726 = "62a7c877afca54e8"
-
 
 def g(x1: int, z1: int, x2: int, z2: int) -> int:
     """

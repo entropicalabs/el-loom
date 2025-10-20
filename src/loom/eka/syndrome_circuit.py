@@ -92,7 +92,6 @@ class SyndromeCircuit:
     name: str = Field(min_length=1, default_factory=lambda: "SyndromeCircuit")
     circuit: Circuit | None = Field(default_factory=lambda: None, validate_default=True)
     uuid: str = Field(default_factory=lambda: str(uuid4()), validate_default=True)
-    # dad26f584d53fe4f
 
     # Validation functions
     _validate_pauli = field_validator("pauli")(pauli_error)

@@ -10,7 +10,8 @@ Ltd.
 from __future__ import annotations
 from uuid import uuid4
 
-from pydantic.dataclasses import dataclass, Field
+from pydantic.fields import Field
+from pydantic.dataclasses import dataclass
 from loom.eka.utilities import dataclass_params
 
 from .utilities import Cbit
@@ -39,6 +40,10 @@ class Syndrome:
         Syndrome extraction round of the respective block in which this syndrome was
         measured. Note that the rounds of syndrome extraction are counted for each block
         individually.
+    corrections: tuple[Cbit, ...]
+        List of classical bits that needed to account for parity computation between
+        subsequent rounds of syndrome extraction. This is necessary when the stabilizer
+        was modified during a lattice surgery operation
     uuid : str
         Unique identifier of the syndrome, created with the uuid module.
     """
@@ -48,6 +53,7 @@ class Syndrome:
     block: str
     round: int
     corrections: tuple[Cbit, ...] = Field(default_factory=tuple)
+    labels: dict[str, str | tuple[int, ...] | int] = Field(default_factory=dict)
     uuid: str = Field(default_factory=lambda: str(uuid4()), validate_default=True)
 
     def __eq__(self, other: Syndrome) -> bool:
@@ -66,5 +72,17 @@ class Syndrome:
     def __repr__(self) -> str:
         return (
             f"Syndrome(Measurements: {self.measurements}, "
-            f"Corrections: {self.corrections}, Round: {self.round})"
+            f"Corrections: {self.corrections}, Round: {self.round}, "
+            f"Labels: {self.labels})"
+        )
+
+    def __hash__(self) -> int:
+        return hash(
+            (
+                self.stabilizer,
+                self.measurements,
+                self.block,
+                self.round,
+                self.corrections,
+            )
         )

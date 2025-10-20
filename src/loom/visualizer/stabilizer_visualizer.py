@@ -247,9 +247,9 @@ class StabilizerPlot:  # pylint: disable=too-many-instance-attributes
 
         return x, y
 
-    def show(self) -> None:
+    def show(self, **kwargs) -> None:
         """Show the plotly figure."""
-        self._fig.show()
+        self._fig.show(**kwargs)
 
     def get_qb_coord(self, qb: tuple[int, ...]) -> tuple[float, ...]:
         """

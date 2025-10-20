@@ -18,28 +18,19 @@ dataclass_params = {
 }
 
 
-def no_name_error(name: str) -> str:
+def coordinate_length_error(
+    list_of_coordinates: tuple[tuple, ...],
+) -> tuple[tuple, ...]:
     """
-    Check if the name is not empty.
+    Check if the length of the lists in the list are consistent.
     """
-    if len(name) == 0:
-        raise ValueError("Names of Circuit objects need to have at least one letter.")
-    return name.lower()
+    if len(list_of_coordinates) != 0:
+        length = len(list_of_coordinates[0])
+    for item in list_of_coordinates:
+        if len(item) != length:
+            raise ValueError("Length of coordinates must be consistent.")
 
-
-def uuid_error(uuid_str: str) -> str:
-    """
-    Check if the uuid is a valid uuid.
-    """
-    try:
-        uuid_obj = uuid.UUID(uuid_str)
-    except ValueError as exc:
-        raise ValueError(f"Invalid uuid: {uuid_str}. UUID must be version 4.") from exc
-
-    if uuid_obj.version != 4:
-        raise ValueError(f"Invalid uuid: {uuid_str}. UUID must be version 4.")
-
-    return uuid_str
+    return list_of_coordinates
 
 
 def distinct_error(value: Union[tuple, list]):
@@ -56,36 +47,43 @@ def distinct_error(value: Union[tuple, list]):
     return value
 
 
-def pauli_error(pauli_str: str) -> str:
+def empty_list_error(list_obj: list):
     """
-    Check if the pauli is a valid pauli string.
+    Check if the list is empty. Throw an error if that is the case.
     """
-    valid_pauli_chars = ["X", "Y", "Z"]
+    if len(list_obj) == 0:
+        raise ValueError("List cannot be empty.")
 
-    def error_message(input_pauli: str) -> ValueError:
-        return ValueError(
-            f"Invalid pauli: {input_pauli}. Must be one of {valid_pauli_chars}."
-        )
-
-    for p in pauli_str:
-        if p not in valid_pauli_chars:
-            raise error_message(p)
-    return pauli_str
+    return list_obj
 
 
-def coordinate_length_error(
-    list_of_coordinates: tuple[tuple, ...],
-) -> tuple[tuple, ...]:
+def ensure_tuple(list_obj):
     """
-    Check if the length of the lists in the list are consistent.
+    Adjusts lists to tuples to ensure immutability of the data structures.
     """
-    if len(list_of_coordinates) != 0:
-        length = len(list_of_coordinates[0])
-    for item in list_of_coordinates:
-        if len(item) != length:
-            raise ValueError("Length of coordinates must be consistent.")
+    try:
+        len(list_obj)
+        return list_obj
+    except TypeError:
+        return (list_obj,)
 
-    return list_of_coordinates
+
+def larger_than_zero_error(value: int, arg_name: str):
+    """
+    Check if the value is larger than zero.
+    """
+    if value <= 0:
+        raise ValueError(f"{arg_name} has to be larger than 0.")
+    return value
+
+
+def no_name_error(name: str) -> str:
+    """
+    Check if the name is not empty.
+    """
+    if len(name) == 0:
+        raise ValueError("Names of Circuit objects need to have at least one letter.")
+    return name.lower()
 
 
 def nr_of_qubits_error(qubits: tuple[tuple[int, ...], ...], values: ValidationInfo):
@@ -104,6 +102,23 @@ def nr_of_qubits_error(qubits: tuple[tuple[int, ...], ...], values: ValidationIn
         )
 
     return qubits
+
+
+def pauli_error(pauli_str: str) -> str:
+    """
+    Check if the pauli is a valid pauli string.
+    """
+    valid_pauli_chars = ["X", "Y", "Z"]
+
+    def error_message(input_pauli: str) -> ValueError:
+        return ValueError(
+            f"Invalid pauli: {input_pauli}. Must be one of {valid_pauli_chars}."
+        )
+
+    for p in pauli_str:
+        if p not in valid_pauli_chars:
+            raise error_message(p)
+    return pauli_str
 
 
 def retrieve_field(name: str, info: ValidationInfo):
@@ -126,31 +141,16 @@ def retrieve_field(name: str, info: ValidationInfo):
         ) from exc
 
 
-def ensure_tuple(list_obj):
+def uuid_error(uuid_str: str) -> str:
     """
-    Adjusts lists to tuples to ensure immutability of the data structures.
+    Check if the uuid is a valid uuid.
     """
     try:
-        len(list_obj)
-        return list_obj
-    except TypeError:
-        return (list_obj,)
+        uuid_obj = uuid.UUID(uuid_str)
+    except ValueError as exc:
+        raise ValueError(f"Invalid uuid: {uuid_str}. UUID must be version 4.") from exc
 
+    if uuid_obj.version != 4:
+        raise ValueError(f"Invalid uuid: {uuid_str}. UUID must be version 4.")
 
-def empty_list_error(list_obj: list):
-    """
-    Check if the list is empty. Throw an error if that is the case.
-    """
-    if len(list_obj) == 0:
-        raise ValueError("List cannot be empty.")
-
-    return list_obj
-
-
-def larger_than_zero_error(value: int, arg_name: str):
-    """
-    Check if the value is larger than zero.
-    """
-    if value <= 0:
-        raise ValueError(f"{arg_name} has to be larger than 0.")
-    return value
+    return uuid_str

@@ -9,6 +9,7 @@ Ltd.
 
 from .base_applicator import BaseApplicator
 from .code_applicator import CodeApplicator
+from .conditional_logical_pauli import conditional_logical_pauli
 from .measure_block_syndromes import measureblocksyndromes
 from .measure_logical_pauli import measurelogicalpauli
 from .logical_pauli import logical_pauli

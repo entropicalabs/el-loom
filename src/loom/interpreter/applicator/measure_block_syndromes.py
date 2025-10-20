@@ -122,7 +122,7 @@ def measureblocksyndromes(  # pylint: disable=too-many-locals
     ]  # Maybe test for empty lists ???
 
     # Repeat for n_cycle:
-    # Use cycle to create the cbits?
+    # TODO: Use cycle to create the cbits? pylint: disable=fixme
     for _ in range(operation.n_cycles):
         #   B.3) - Find the classical channels (create them if they don't exist) and create cbits
         cbit_channels, measurements = [], []
@@ -163,17 +163,15 @@ def measureblocksyndromes(  # pylint: disable=too-many-locals
             )
             woven_circuit_seq += (time_slice,)
 
-        # D) - Generate new syndromes for the stabilizers involved (create if needed)
+        # D) - Generate new syndromes for the stabilizers involved
         new_syndromes = generate_syndromes(
             interpretation_step,
             stabilizers,
-            block.uuid,
+            block,
             measurements,
         )
         # E) - Create new detectors for the new syndromes
-        new_detectors = generate_detectors(
-            interpretation_step, stabilizers, block.uuid, new_syndromes
-        )
+        new_detectors = generate_detectors(interpretation_step, new_syndromes)
 
         # F) - Update the interpretation_step with the new syndromes and detectors
         interpretation_step.append_syndromes_MUT(new_syndromes)

@@ -6,9 +6,9 @@ Block
 Definition
 ^^^^^^^^^^
 
-A :class:`~loom.eka.block.Block` is a dataclass that describes a QEC code that is compatible with Loom modules and more particularly :class:`~loom.eka.eka.Eka`.
+A :class:`~loom.eka.block.Block` is a dataclass that describes a QEC code that is compatible with Loom modules and more particularly with :class:`~loom.eka.eka.Eka`.
 
-Note that at no point a :class:`~loom.eka.block.Block` will represent a full quantum state, they describe a subspace in which one can encode logical information using operations.
+Note that at no point a :class:`~loom.eka.block.Block` will represent a full quantum state: they describe a subspace in which one can encode logical information using operations.
 
 It is a general representation of a stabilizer code.
 
@@ -28,7 +28,7 @@ We start by defining the :class:`~loom.eka.lattice.Lattice` that sets the geomet
 
 While it is not necessary to create a :class:`~loom.eka.block.Block` object, it is useful to know what the lattice is like for indexing purpose.
 
-Once the lattice is defined, we can create the code stabilizers. To create a bit-flip repetition code, we need two :math:`ZZ` logical operators.
+Once the lattice is defined, we can create the code stabilizers. To create a bit-flip repetition code, we need two :math:`ZZ` checks.
 
 .. code-block:: python
   
@@ -70,7 +70,7 @@ Finally, we need to specify how to measure the stabilizers we created using :cla
       stab.uuid: zz_circuit.uuid for stab in repetition_stabs
   }
 
-Note that this step may be ignored. In that case, a default set of :class:`~loom.eka.syndrome_circuit.SyndromeCircuit` is provided but there is no guarantee when it comes to error correction properties.
+Note that this step may be ignored. In that case, a default set of :class:`~loom.eka.syndrome_circuit.SyndromeCircuit` is provided but there is no guarantee when it comes to fault tolerance properties.
 
 Once we have defined all the different components, we can assemble them together and create the :class:`~loom.eka.block.Block` object:
 
@@ -93,7 +93,7 @@ This process can be automated and we provide multiple code factories for well-kn
 Validations
 ^^^^^^^^^^^
 
-There is a comprehensive set of validations applied at the construction of :class:`~loom.eka.block.Block` to ensure that some properties are satisfied. These checks ensure that a user defining a custom code does not result in an erroneous definition of a QEC. We use the notation :math:`[\![n, k, d]\!]` for a code that encodes :math:`k` logical qubits in an :math:`n` qubits state, and whose distance is :math:`d`. 
+There is a comprehensive set of validations applied at the construction of :class:`~loom.eka.block.Block` to ensure that some properties are satisfied. These checks ensure that a user defining a custom code does not result in an erroneous definition of a QEC code. We use the notation :math:`[\![n, k, d]\!]` for a code that encodes :math:`k` logical qubits in :math:`n` physical qubits and whose distance is :math:`d`. 
 
 The list of validators includes:
 
@@ -121,11 +121,9 @@ The list of validators includes:
 
 - Anti-commutation relations of logical operators: all logical :math:`X` operators anti-commute with exactly one logical :math:`Z` operator (and vice-versa). The non-commuting logical operators share the same index by convention.
 
-  :math:`[x_i, z_j] = 0, \forall i, j \in |\{\mathcal{L}_{X,Z}\}|, i\neq j`
+  :math:`[x_i, z_j] = 0, \forall x_i, z_j \in \{\mathcal{L}_{X,Z}\}, i\neq j`
 
-  :math:`[x_i, x_j] = 0, \forall x_i, x_j \in \{\mathcal{L}_X\}`
-
-  :math:`[z_i, z_j] = 0, \forall z_i, z_j \in \{\mathcal{L}_Z\}`
+  :math:`\{x_i, z_i\} = 0, \forall x_i \in \{\mathcal{L}_X\} \text{ and } z_i \in \{\mathcal{L}_Z\}`
 
 - The number of physical qubits, stabilizers, and logical operators is consistent with the code: for a given code :math:`[\![n, k, d]\!]`, we have :math:`n - k` independent stabilizers acting (non-trivially) on a total of :math:`n` qubits, :math:`k` logical :math:`X` operators, and :math:`k` logical :math:`Z` operators. Since only the number of independent stabilizer matters, we can use an overdefined set.
 
@@ -141,4 +139,4 @@ The list of validators includes:
 Assumptions
 ^^^^^^^^^^^
 
-A block assumes that there exists a stabilizer representation of the QEC code and that :class:`~loom.eka.circuit.Circuit` are mapped to these stabilizers, i.e. stabilizer codes that are circuit based. Non-stabilizer codes are not natively supported.
+A block assumes that there exists a stabilizer representation of the QEC code and that :class:`~loom.eka.circuit.Circuit` objects are mapped to these stabilizers. Non-stabilizer codes are not natively supported.

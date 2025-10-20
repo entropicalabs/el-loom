@@ -1,31 +1,46 @@
 [project]
 name = "loom"
-version = "0.1.0"
+version = "0.0.31"
 description = "An integrated software platform designed to handle the complexities of quantum error correction, seamlessly transforming applications into fault-tolerant, hardware-ready versions."
-authors = [{name="Entropica Labs Pte Ltd", email="info@entropicalabs.com"}]
+authors = [
+    { name = "Entropica Labs Pte Ltd", email = "info@entropicalabs.com" },
+]
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "pydantic (>=2.9,<2.10)",
-    "stim (>=1.14.0,<2.0.0)",
     "numpy>=1.26.0",
-    "nbformat>=4.2.0",         # Required for plotly
-    "plotly~=6.1.2",           # Required for visualizer
-    "igraph~=0.11.9",
-    "networkx~=3.5"
+    "scipy~=1.16.0",
+    "nbformat>=4.2.0",
+    "plotly~=6.1.2",
+    "networkx~=3.5",
+
+    # Supported executors
+    "mimiqcircuits~=0.18.0",
+    "pennylane-catalyst~=0.13.0",
+    "openqasm3~=1.0.0",
+    "stim (>=1.14.0,<2.0.0)",
+    "cudaq~=0.12.0 ; sys_platform != 'darwin'",
+    "cuda-quantum-cu12~=0.12.0 ; sys_platform != 'darwin'",
 ]
 
 [tool.poetry]
 packages = [
     { include = "loom", from = "src" },
+    { include = "loom_five_qubit_perfect_code", from = "src" },
+    { include = "loom_repetition_code", from = "src" },
+    { include = "loom_rotated_surface_code", from = "src" },
+    { include = "loom_shor_code", from = "src" },
+    { include = "loom_steane_code", from = "src" }
 ]
+
 
 [tool.poetry.group.dev]
 optional = true
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.0"
-black = {version=">=25.0", extras=["jupyter"]}
+black = { version = ">=25.0", extras = ["jupyter"] }
 pylint = "^3.3.6"
 ipykernel = "^6.29.5"
 nbconvert = ">=7.16.6"
@@ -43,7 +58,7 @@ sphinx-autobuild = "^2024.10.3"
 qiskit = ">=2.1.0,<3.0.0"
 qiskit-aer = ">=0.17.1,<0.18.0"
 qiskit-qasm3-import = ">=0.6.0,<0.7.0"
-myst-nb = ">=1.3.0"          # Required for displaying jupyter notebooks
+myst-nb = ">=1.3.0"                    # Required for displaying jupyter notebooks
 
 [tool.poetry.group.notebooks]
 optional = true
@@ -52,7 +67,14 @@ optional = true
 qiskit = ">=2.1.0,<3.0.0"
 qiskit-aer = ">=0.17.1,<0.18.0"
 qiskit-qasm3-import = ">=0.6.0,<0.7.0"
-myst-nb = ">=1.3.0"          # Required for displaying jupyter notebooks
+myst-nb = ">=1.3.0"                    # Required for displaying jupyter notebooks
+
+[tool.poetry.plugins."loom.selectors"]
+fqp_options = "loom_five_qubit_perfect_code.selectors:selector_dict"
+repc_options = "loom_repetition_code.selectors:selector_dict"
+rsc_options = "loom_rotated_surface_code.selectors:selector_dict"
+shor_options = "loom_shor_code.selectors:selector_dict"
+steane_options = "loom_steane_code.selectors:selector_dict"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -62,3 +84,20 @@ build-backend = "poetry.core.masonry.api"
 markers = [
     "notebook: marks notebook tests (deselect with '-m \"not notebooks\"')",
 ]
+
+[tool.pylint.DESIGN]
+max-locals = 25
+max-args = 7
+max-positional-arguments = 7
+
+[tool.pylint."MESSAGES CONTROL"]
+disable = [
+    "fixme",  # ignore TODO warnings
+    "duplicate-code" # ignore duplicate code warnings
+]
+
+# [tool.pylint.FORMAT]
+# max-line-length = 88
+
+[tool.pylint.REPORTS]
+output-format = "parseable"  # short CI-friendly messages

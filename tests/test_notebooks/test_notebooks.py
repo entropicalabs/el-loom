@@ -48,7 +48,7 @@ class TestNotebooks(unittest.TestCase):
         """
         repo_path = dirname(dirname(dirname(os.path.abspath(__file__))))
 
-        for dirpath, _, filenames in os.walk(repo_path + "/docs/source/notebooks"):
+        for dirpath, _, filenames in os.walk(repo_path + "/docs/sphinx/notebooks"):
             for f in filenames:
                 if f.endswith(".ipynb"):
                     filename = os.path.join(dirpath, f)

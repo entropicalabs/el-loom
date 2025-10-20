@@ -32,11 +32,11 @@ print(long_subcircuit)
 #     ],
 # )
 
-# This fails because it tries to do :
+# This fails because it tries to do:
 # tick 0: long_subcircuit tick 0: [gate_1, chan1]
 # tick 1: [gate_1, gate_2] AND (long_subcircuit tick 1: [gate_2, chan2]) => 2 gates applied to chan2 at the same time
 
-# We need to pad with empty tick :
+# We need to pad with empty tick:
 valid_circuit = Circuit(
     name="valid_circuit",
     circuit=(
@@ -51,7 +51,7 @@ valid_circuit = Circuit(
 
 print(valid_circuit)
 
-# Output :
+# Output:
 # valid_circuit
 # 0: long_subcircuit
 # 1:

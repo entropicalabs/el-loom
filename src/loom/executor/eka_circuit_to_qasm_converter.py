@@ -10,7 +10,7 @@ Ltd.
 import re
 from functools import reduce
 
-from loom.eka import Circuit, Channel, ChannelType
+from ..eka import Circuit, Channel, ChannelType
 
 
 # pylint: disable=too-many-locals, too-many-statements
@@ -454,6 +454,7 @@ def convert_circuit_to_qasm(
 
             # instructions to add barriers
             # pylint: disable=fixme
+            # TODO: Improve barrier placement. Currently too many!
             data_indices = ", ".join(
                 f"data_qreg[{i}]" for i in range(len(data_qubits_map))
             )

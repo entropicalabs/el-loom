@@ -4,15 +4,69 @@ Copyright (c) Entropica Labs Pte Ltd 2025.
 Use, distribution and reproduction of this program in its source or compiled
 form is prohibited without the express written consent of Entropica Labs Pte
 Ltd.
-
 """
 
+from collections import defaultdict
+
 import numpy as np
+import networkx as nx
 import plotly.graph_objs as go
 
 from loom.eka import Circuit
 
-from .plotting_utils import convert_circuit_to_igraph
+from .plotting_utils import convert_circuit_to_nx_graph
+
+
+# pylint: disable=too-many-locals
+def hierarchy_layout(graph, root=None, x_spacing=1.0, y_spacing=1.5):
+    """
+    Pure-Python replacement for graphviz_layout (hierarchical layout).
+
+    Parameters
+    ----------
+    graph : nx.DiGraph
+        Directed acyclic graph to layout.
+    root : node or None
+        Optional root node. If None, the first node with in-degree 0 is used.
+    x_spacing : float
+        Horizontal spacing between sibling nodes.
+    y_spacing : float
+        Vertical spacing between levels.
+
+    Returns
+    -------
+    dict
+        Mapping of node -> (x, y) positions.
+    """
+
+    if not nx.is_directed_acyclic_graph(graph):
+        graph = nx.DiGraph(graph)
+
+    # Choose a root if none provided
+    if root is None:
+        roots = [n for n, deg in graph.in_degree() if deg == 0]
+        root = roots[0] if roots else list(graph.nodes())[0]
+
+    # BFS/topological sort to determine depth/layer of each node
+    layers = defaultdict(list)
+    for node in nx.topological_sort(graph):
+        preds = list(graph.predecessors(node))
+        depth = (
+            0 if not preds else 1 + max(graph.nodes[p].get("_depth", 0) for p in preds)
+        )
+        graph.nodes[node]["_depth"] = depth
+        layers[depth].append(node)
+
+    # Assign x, y positions
+    pos = {}
+    max_width = max(len(nodes) for nodes in layers.values())
+    for depth, nodes in layers.items():
+        width = len(nodes)
+        for i, node in enumerate(nodes):
+            x = (i - (width - 1) / 2) * x_spacing * (max_width / width)
+            y = -depth * y_spacing
+            pos[node] = (x, y)
+    return pos
 
 
 def plot_circuit_tree(  # pylint: disable=too-many-locals
@@ -64,39 +118,30 @@ def plot_circuit_tree(  # pylint: disable=too-many-locals
             "#005FA8",
         ]
 
-    # Get an igraph object representing the circuit and a list of labels for all nodes
-    graph, labels_nodes = convert_circuit_to_igraph(circuit)
+    # Get an nx graph representing the circuit and a list of labels for all nodes
+    graph, labels_nodes = convert_circuit_to_nx_graph(circuit)
 
-    # Calculate the coordinates of the nodes in the tree
-    nr_vertices = graph.vcount()
+    # Tree-like layout (pure Python, no Graphviz required)
+    positions = hierarchy_layout(graph)
 
-    # Get the tree layout using the Reingold-Tilford method.
-    # 'layout' is a list of tuples with the x and y coordinates of the nodes
-    layout = graph.layout("rt")
-    positions = {k: layout[k] for k in range(nr_vertices)}  # Create dict for positions
+    nodes_x_coords = [x for x, y in positions.values()]
+    nodes_y_coords = [y for x, y in positions.values()]
 
-    # Create separate lists for the x and y coordinates of the nodes.
-    # The y coordinates are flipped to have the root node at the top
-    max_y = max(layout[k][1] for k in range(nr_vertices))
-    nodes_x_coords = [positions[k][0] for k in range(nr_vertices)]
-    nodes_y_coords = [max_y - positions[k][1] for k in range(nr_vertices)]
-
+    # Create mapping from node ID to coordinates
+    node_positions = {node: (x, y) for node, (x, y) in positions.items()}
     # Create lists of edge coordinates
-    # Flip the y-coordinates of the edges in the same way as the nodes
-    edge_coords = [e.tuple for e in graph.es]  # List of edges
     edge_x_coords = []
     edge_y_coords = []
-    for edge in edge_coords:
-        edge_x_coords += [[positions[edge[0]][0], positions[edge[1]][0], None]]
-        edge_y_coords += [
-            [max_y - positions[edge[0]][1], max_y - positions[edge[1]][1], None]
-        ]
+    for u, v in graph.edges():
+        x0, y0 = node_positions[u]
+        x1, y1 = node_positions[v]
+        edge_x_coords.append([x0, x1, None])
+        edge_y_coords.append([y0, y1, None])
 
-    # Sorted list of unique y-coordinates of the nodes
-    nodes_y_coords_set = sorted(set(nodes_y_coords), reverse=True)
+    # Sorted list of unique y-coordinates for layers
+    nodes_y_coords_set = sorted({y for _, y in node_positions.values()}, reverse=True)
 
     # Check whether provided layer labels are valid
-    # and generate default labels if none are provided
     if layer_labels is None:
         layer_labels = [
             f"Layer {layer_idx+1}" for layer_idx in range(len(nodes_y_coords_set))
@@ -152,8 +197,7 @@ def plot_circuit_tree(  # pylint: disable=too-many-locals
                     line={"color": "rgb(210,210,210)", "width": 1},
                     hoverinfo="none",
                     legendgroup=f"layer_{layer_idx+2}",
-                    showlegend=False,  # Dont't show this label. Instead
-                    # the labels from the dots (circuit elements) are used
+                    showlegend=False,
                 )
             )
 

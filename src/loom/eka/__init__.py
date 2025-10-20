@@ -7,7 +7,6 @@ Ltd.
 
 """
 
-# pylint: disable=import-self
 from .block import Block
 from .circuit import (
     Circuit,
@@ -22,6 +21,7 @@ from .circuit_algorithms import (
 )
 from .eka import Eka
 from .lattice import Lattice, LatticeType
+from .logical_state import LogicalState
 from .matrices import ClassicalParityCheckMatrix, ParityCheckMatrix
 from .pauli_operator import PauliOperator
 from .stabilizer import Stabilizer

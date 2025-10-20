@@ -7,16 +7,16 @@ Ltd.
 
 """
 
-from loom.eka import Circuit, Block
+from loom.eka import Circuit
 from loom.eka.operations import (
     MeasureLogicalX,
     MeasureLogicalY,
     MeasureLogicalZ,
+    LogicalMeasurement,
 )
 
 from .generate_syndromes import generate_syndromes
 from .generate_detectors import generate_detectors
-from ..utilities import Cbit
 from ..interpretation_step import InterpretationStep
 from ..logical_observable import LogicalObservable
 
@@ -71,9 +71,45 @@ def measurelogicalpauli(  # pylint: disable=too-many-locals
             raise ValueError(f"Operation {operation.__class__.__name__} not supported")
 
     # 1 - Measure all data qubits in a block and keep track of the Cbits
-    interpretation_step, measurements = measurealldataqubits(
-        interpretation_step, block, same_timeslice, basis
+    meas_circuit_seq = []
+
+    # Add Hadamard layer for X basis
+    if basis == "X":
+        hadamard_layer = [
+            Circuit(
+                "H", channels=interpretation_step.get_channel_MUT(str(q), "quantum")
+            )
+            for q in block.data_qubits
+        ]
+        meas_circuit_seq += [hadamard_layer]
+
+    # Create the measurement layer in Z basis
+    cbit_labels = [f"c_{qubit}" for qubit in block.data_qubits]
+    measurements = tuple(
+        interpretation_step.get_new_cbit_MUT(label) for label in cbit_labels
     )
+    measurement_layer = [
+        Circuit(
+            "measurement",
+            channels=[
+                interpretation_step.get_channel_MUT(
+                    str(qubit), "quantum"
+                ),  # qubit to measure
+                interpretation_step.get_channel_MUT(
+                    f"{cbit[0]}_{cbit[1]}", "classical"
+                ),  # associated classical bit
+            ],
+        )
+        for qubit, cbit in zip(block.data_qubits, measurements, strict=True)
+    ]
+
+    meas_circuit_seq += [measurement_layer]
+    meas_circuit = Circuit(
+        f"Measure logical {basis} of {block.unique_label}", circuit=meas_circuit_seq
+    )
+
+    # Append the circuit
+    interpretation_step.append_circuit_MUT(meas_circuit, same_timeslice)
 
     # 2 - Update Syndromes for all stabilizers involved in the data qubits measured
     # Only use the stabilizers of the right pauli type
@@ -87,14 +123,12 @@ def measurelogicalpauli(  # pylint: disable=too-many-locals
         ]
         for stab in relevant_stabs
     ]
-    # Create new Syndromes from these measuerments
+    # Create new Syndromes from these measurements
     new_syndromes = generate_syndromes(
-        interpretation_step, relevant_stabs, block.uuid, stab_cbits
+        interpretation_step, relevant_stabs, block, stab_cbits
     )
     # Create Detectors for the new syndromes
-    new_detectors = generate_detectors(
-        interpretation_step, block.stabilizers, block.uuid, new_syndromes
-    )
+    new_detectors = generate_detectors(interpretation_step, new_syndromes)
 
     # 3 - Create the logical observable including measured data qubits and all previous corrections
 
@@ -114,63 +148,11 @@ def measurelogicalpauli(  # pylint: disable=too-many-locals
         label=f"{block.unique_label}_{basis}_{logical_qubit_index}",
         measurements=logical_measurements + corrections,
     )
-
+    interpretation_step.logical_measurements[
+        LogicalMeasurement(blocks=(block.unique_label,), observable=basis)
+    ] = tuple(logical_measurements + corrections)
     interpretation_step.append_detectors_MUT(new_detectors)
     interpretation_step.append_syndromes_MUT(new_syndromes)
     interpretation_step.logical_observables += (logical_observable,)
 
     return interpretation_step
-
-
-def measurealldataqubits(
-    interpretation_step: InterpretationStep,
-    selected_block: Block,
-    same_timeslice: bool,
-    basis: str,
-) -> tuple[InterpretationStep, tuple[Cbit, ...]]:
-    """
-    Creates and appends a circuit that measures all data qubits in the block to the
-    interpretation step. The data qubits will be measured in the specified basis.
-    """
-    meas_circuit_seq = []
-
-    # Add Hadamard layer for X basis
-    if basis == "X":
-        hadamard_layer = [
-            Circuit(
-                "H", channels=interpretation_step.get_channel_MUT(str(q), "quantum")
-            )
-            for q in selected_block.data_qubits
-        ]
-        meas_circuit_seq += [hadamard_layer]
-
-    # Create the measurement layer in Z basis
-    cbit_labels = [f"c_{qubit}" for qubit in selected_block.data_qubits]
-    measurements = tuple(
-        interpretation_step.get_new_cbit_MUT(label) for label in cbit_labels
-    )
-    measurement_layer = [
-        Circuit(
-            "measurement",
-            channels=[
-                interpretation_step.get_channel_MUT(
-                    str(qubit), "quantum"
-                ),  # qubit to measure
-                interpretation_step.get_channel_MUT(
-                    f"{cbit[0]}_{cbit[1]}", "classical"
-                ),  # associated classical bit
-            ],
-        )
-        for qubit, cbit in zip(selected_block.data_qubits, measurements, strict=True)
-    ]
-
-    meas_circuit_seq += [measurement_layer]
-    meas_circuit = Circuit(
-        f"Measure logical {basis} of {selected_block.unique_label}",
-        circuit=meas_circuit_seq,
-    )
-
-    # Append the circuit
-    interpretation_step.append_circuit_MUT(meas_circuit, same_timeslice)
-
-    return interpretation_step, measurements

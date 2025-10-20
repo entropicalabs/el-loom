@@ -2,8 +2,8 @@
 
 This folder contains tools and content to build the Loom documentation.
 
-NOTE: The documentation is already built and accessible by opening docs/build/index.html 
-within any web browser. This README simply contains the instructions for re-building the 
+NOTE: The documentation is accessible by opening docs/build/index.html 
+within any web browser. This README contains the instructions for building the 
 documentation and locally hosting the website on your device.
 
 This project uses [Sphinx](https://www.sphinx-doc.org/en/master/) to build documentation.

@@ -116,9 +116,9 @@ def find_maximum_matching(graph: nx.Graph) -> dict[int, int]:
 
 def minimum_edge_coloring(graph: nx.Graph) -> dict[int, list[tuple[int, int]]]:
     """
-    Computes the minimum edge coloring of a bipartite graph graph. The chromatic index for
-    all bipartite graphs is equal to the maximum degree of the graph. In the context of
-    leveraging this algorithm for circuit construction, this is equivalent to
+    Computes the minimum edge coloring of a bipartite graph ``graph``. The chromatic
+    index for all bipartite graphs is equal to the maximum degree of the graph. In the
+    context of leveraging this algorithm for circuit construction, this is equivalent to
     distributing more gates into a single layer.
 
     Parameters

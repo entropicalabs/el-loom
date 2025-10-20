@@ -723,12 +723,6 @@ class TestInterpretationStep(unittest.TestCase):
         rsc_2_copy_a = self.rot_surf_code_2.rename(self.rot_surf_code_2.unique_label)
         rsc_2_copy_b = self.rot_surf_code_2.rename(self.rot_surf_code_2.unique_label)
         int_step = InterpretationStep(
-            block=[
-                [self.rot_surf_code_1],
-                [self.rot_surf_code_2],
-                [rsc_2_copy_a],
-                [rsc_2_copy_b],
-            ],
             block_evolution={
                 self.rot_surf_code_2.uuid: (self.rot_surf_code_1.uuid,),
                 rsc_2_copy_a.uuid: (self.rot_surf_code_2.uuid,),

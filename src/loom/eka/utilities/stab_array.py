@@ -12,16 +12,18 @@ from itertools import combinations
 from typing import Sequence
 from functools import reduce
 from copy import deepcopy
-
+import re
 import numpy as np
 
 from .exceptions import AntiCommutationError
 from .pauli_array import PauliArray
 from .pauli_array_computation import rowsum
 from .pauli_binary_vector_rep import SignedPauliOp, pauliops_anti_commute
+from .graph_matrix_utils import binary_gaussian_elimination
 from .tableau import tableau_generates_pauli_group
 
 
+# pylint: disable=too-many-lines
 class StabArray(PauliArray):
     """
     A StabArray is a collection of commuting SignedPauliOps acting on the same qubit
@@ -99,6 +101,17 @@ class StabArray(PauliArray):
                 )
 
         self.array = array
+
+    def copy(self) -> StabArray:
+        """
+        Returns a deep copy of the StabArray object.
+
+        Returns
+        -------
+        SignedPauliOp
+            Deep copy of the StabArray object
+        """
+        return deepcopy(self)
 
     @classmethod
     def from_signed_pauli_ops(
@@ -214,264 +227,10 @@ class StabArray(PauliArray):
     def __repr__(self) -> str:
         return f"StabArray({self.as_paulistrings})"
 
-    def copy(self) -> StabArray:
-        """
-        Returns a deep copy of the StabArray object.
-
-        Returns
-        -------
-        SignedPauliOp
-            Deep copy of the StabArray object
-        """
-        return deepcopy(self)
-
 
 ########################################################################################
 # Methods of StabArray
 ########################################################################################
-
-
-def merge_stabarrays(stabarr_tuple: tuple[StabArray, ...]) -> StabArray:
-    """
-    Merges StabArrays.
-
-    Parameters
-    ----------
-    stabarr_tuple : tuple[StabArray, ...]
-        The tuple of StabArrays to be merged.
-
-    Returns
-    -------
-    StabArray
-        The merged StabArray.
-    """
-    if len(stabarr_tuple) < 2:
-        raise ValueError("At least two StabArrays are needed to merge them.")
-
-    # check if the StabArrays have the same number of qubits
-    if any(stabarr.nqubits != stabarr_tuple[0].nqubits for stabarr in stabarr_tuple):
-        raise ValueError("The StabArrays should have the same number of qubits.")
-
-    for star1, star2 in combinations(stabarr_tuple, 2):
-        # check if any of the operators of any pair anti-commute
-        if any(pauliops_anti_commute(p1, p2) for p1 in star1 for p2 in star2):
-            raise AntiCommutationError(
-                "The StabArrays should only contain commuting operators."
-            )
-
-    return StabArray.from_signed_pauli_ops(
-        [p for stabarr in stabarr_tuple for p in stabarr], validated=True
-    )
-
-
-def swap_stabarray_rows(stabarr: StabArray, i: int, j: int) -> StabArray:
-    """
-    Swap two rows of a stabilizer array in-place.
-
-    Parameters
-    ----------
-    stabarr : StabArray
-        The stabilizer array to be modified.
-    i : int
-        The index of the first row.
-    j : int
-        The index of the second row.
-
-    Returns
-    -------
-    StabArray
-        The modified stabilizer array.
-    """
-    stabarr.array[[i, j]] = stabarr.array[[j, i]]
-    return stabarr
-
-
-def stabarray_bge_with_bookkeeping(stabarr: StabArray) -> tuple[StabArray, np.ndarray]:
-    """
-    Performs binary gaussian elimination on a stabilizer array and returns
-    the array in its reduced row echelon form.
-    Reference:
-    https://en.wikipedia.org/wiki/Row_echelon_form#Reduced_row_echelon_form
-
-    Bookkeeping matrix explanation:
-    It also returns the bookkeeping matrix, which is a matrix that keeps track of the
-    row operations that were performed on the stabilizer array, i.e. how to transform
-    the input stabilizer array into the reduced row echelon form. If the (i, j)-th
-    element of the bookkeeping matrix is True, then the i-th stabilizer of the row
-    echelon form contains the j-th row of the initial stabilizer array.
-    In other words, to get the i-th stabilizer of the row echelon form, one should
-    multiply all the stabilizers of the initial stabilizer array with index j that
-    have a True value in the (i, j)-th element of the bookkeeping matrix.
-
-    Parameters
-    ----------
-    stabarr : StabArray
-        The stabilizer array to perform binary gaussian elimination on.
-
-    Returns
-    -------
-    tuple[StabArray, np.ndarray]
-        A tuple containing the reduced stabilizer array and the bookkeeping matrix, i.e.
-        the matrix that keeps track of the row operations that were performed on the
-        stabilizer array.
-    """
-    stabarr_copy = stabarr.copy()
-    m, n = stabarr_copy.array.shape
-
-    # Initialize the bookkeeping matrix
-    bookkeeping_matrix = np.eye(m, dtype=bool)
-
-    h = 0  # Initialization of the pivot row
-    k = 0  # Initialization of the pivot column
-    while h < m and k < n:
-        # Find the k-th pivot:
-        i_max = np.argmax(stabarr_copy.array[h:, k]) + h
-        if stabarr_copy.array[i_max, k] == 0:
-            # No pivot in this column, pass to next column
-            k += 1
-        else:
-            # Swap rows h, imax
-            stabarr_copy = swap_stabarray_rows(stabarr_copy, h, i_max)
-
-            # Update the bookkeeping matrix
-            bookkeeping_matrix[[h, i_max]] = bookkeeping_matrix[[i_max, h]]
-
-            # Need to apply rowsum to eliminate 1s
-            # on column k.
-
-            # Do for all rows excluding pivot
-            irange = np.concatenate([np.arange(h), np.arange(h + 1, m)])
-            # Find rows with 1 in column k
-            irange_with_1_in_col_k = irange[stabarr_copy.array[irange, k] == 1]
-
-            # Apply rowsum to row idx if if st_ar[idx, k] == 1
-            stabarr_copy = reduce(
-                lambda st, i: rowsum(st, i, h),
-                irange_with_1_in_col_k,
-                stabarr_copy,
-            )
-
-            # XOR h into the irange_with_1_in_col_k in the bookkeeping_matrix
-            bookkeeping_matrix[irange_with_1_in_col_k] = np.bitwise_xor(
-                bookkeeping_matrix[irange_with_1_in_col_k], bookkeeping_matrix[h]
-            )
-
-            # Increase pivot row and column
-            h += 1
-            k += 1
-
-    return stabarr_copy, bookkeeping_matrix
-
-
-def reduce_stabarray_with_bookkeeping(
-    stabarr: StabArray,
-) -> tuple[StabArray, np.ndarray]:
-    """
-    Perform stabilizer BGE and then remove any trivial operators. Also return the
-    bookkeeping matrix, which is a matrix that keeps track of the row operations that
-    were performed on the stabilizer array.
-
-    Parameters
-    ----------
-    stabarr : StabArray
-        The stabilizer array to be reduced.
-
-    Returns
-    -------
-    tuple[StabArray, np.ndarray]
-        A tuple containing the reduced stabilizer array and the bookkeeping matrix, i.e.
-        the matrix that keeps track of the row operations that were performed on the
-        stabilizer array.
-    """
-    stabarr_bge, bookkeeping_matrix = stabarray_bge_with_bookkeeping(stabarr)
-    # find which operators are non trivial after BGE
-    non_trivial_ops = [p_op for p_op in stabarr_bge if not p_op.is_trivial]
-    return (
-        StabArray.from_signed_pauli_ops(non_trivial_ops, validated=True),
-        bookkeeping_matrix,
-    )
-
-
-def invert_bookkeeping_matrix(bookkeeping_matrix: np.ndarray) -> np.ndarray:
-    """
-    Invert the bookkeeping matrix.
-
-    Parameters
-    ----------
-    bookkeeping_matrix : np.ndarray
-        The bookkeeping matrix to be inverted.
-
-    Returns
-    -------
-    np.ndarray
-        The inverted bookkeeping matrix.
-    """
-    # We need to invert it and cast it to a boolean array
-    return np.linalg.inv(bookkeeping_matrix).astype(bool)
-
-
-def stabarray_bge(stabarr: StabArray) -> StabArray:
-    """
-    Perform binary gaussian elimination on a stabilizer array.
-
-    Parameters
-    ----------
-    stabarr : StabArray
-        The stabilizer array to perform binary gaussian elimination on.
-
-    Returns
-    -------
-    StabArray
-        The stabilizer array in its reduced row echelon form.
-    """
-    return stabarray_bge_with_bookkeeping(stabarr)[0]
-
-
-def reduce_stabarray(stabarr: StabArray) -> StabArray:
-    """
-    Perform stabilizer BGE and then remove any trivial operators.
-
-    Parameters
-    ----------
-    stabarr : StabArray
-        The stabilizer array to be reduced.
-
-    Returns
-    -------
-    StabArray
-        The reduced stabilizer array.
-    """
-    stabarr_bge = stabarray_bge(stabarr)
-    # remove empty stabilizers
-    return StabArray.from_signed_pauli_ops(
-        [p_op for p_op in stabarr_bge if not p_op.is_trivial],
-        validated=True,
-    )
-
-
-def is_stabarray_equivalent(stab_arr0: StabArray, stab_arr1: StabArray) -> bool:
-    """
-    Check if two stabilizer arrays are equivalent.
-
-    Parameters
-    ----------
-    stab_arr0 : np.ndarray
-        A stabilizer array to be compared with another.
-    stab_arr1 : np.ndarray
-        A stabilizer array to be compared with another.
-
-    Returns
-    -------
-    bool
-        Whether the stabilizer arrays are equivalent.
-    """
-    if stab_arr0.nqubits != stab_arr1.nqubits:
-        # the stabilizer arrays should have the same number of qubits to be equivalent
-        return False
-
-    stab_arr0_bge = reduce_stabarray(stab_arr0)
-    stab_arr1_bge = reduce_stabarray(stab_arr1)
-    return np.all(stab_arr0_bge.array == stab_arr1_bge.array)
 
 
 def find_destabarray(  # pylint: disable=too-many-locals,too-many-branches
@@ -670,3 +429,612 @@ def find_destabarray(  # pylint: disable=too-many-locals,too-many-branches
                     d_array[i, :] ^= stabarr.array[j, :]
 
     return StabArray(d_array, validated=True)
+
+
+def invert_bookkeeping_matrix(bookkeeping_matrix: np.ndarray) -> np.ndarray:
+    """
+    Invert the bookkeeping matrix.
+
+    Parameters
+    ----------
+    bookkeeping_matrix : np.ndarray
+        The bookkeeping matrix to be inverted.
+
+    Returns
+    -------
+    np.ndarray
+        The inverted bookkeeping matrix.
+    """
+    # We need to invert it and cast it to a boolean array
+    return np.linalg.inv(bookkeeping_matrix).astype(bool)
+
+
+def is_stabarray_equivalent(stab_arr0: StabArray, stab_arr1: StabArray) -> bool:
+    """
+    Check if two stabilizer arrays are equivalent.
+
+    Parameters
+    ----------
+    stab_arr0 : np.ndarray
+        A stabilizer array to be compared with another.
+    stab_arr1 : np.ndarray
+        A stabilizer array to be compared with another.
+
+    Returns
+    -------
+    bool
+        Whether the stabilizer arrays are equivalent.
+    """
+    if stab_arr0.nqubits != stab_arr1.nqubits:
+        # the stabilizer arrays should have the same number of qubits to be equivalent
+        return False
+
+    stab_arr0_bge = reduce_stabarray(stab_arr0)
+    stab_arr1_bge = reduce_stabarray(stab_arr1)
+    return np.all(stab_arr0_bge.array == stab_arr1_bge.array)
+
+
+def is_subset_of_stabarray(
+    pauli_obj_sub: SignedPauliOp | StabArray, stab_arr_super: StabArray
+) -> bool:
+    """Check if a StabArray or SignedPauliOp is a subset of a StabArray.
+
+    Parameters
+    ----------
+    pauli_obj_sub : SignedPauliOp | StabArray
+        The SignedPauliOp or StabArray to be checked if it is a subset.
+    stab_arr_super : StabArray
+        The StabArray to be checked if it is a superset.
+
+    Returns
+    -------
+    bool
+        Whether the StabArray or SignedPauliOp is a subset of the StabArray.
+    """
+    # Convert the SignedPauliOp to a single row StabArray
+    if isinstance(pauli_obj_sub, SignedPauliOp):
+        pauli_obj_sub = StabArray.from_signed_pauli_ops([pauli_obj_sub], validated=True)
+
+    # Check the validity of the inputs
+    if not isinstance(pauli_obj_sub, StabArray):
+        raise TypeError(
+            "The pauli_obj_sub input should be a SignedPauliOp or a StabArray, not "
+            f"{type(pauli_obj_sub)}."
+        )
+    if not isinstance(stab_arr_super, StabArray):
+        raise TypeError(
+            "The stab_arr_super input should be a StabArray, not "
+            f"{type(stab_arr_super)}."
+        )
+
+    # If the number of qubits of the subarray is not the same as the superarray,
+    # then the subarray cannot be a subset
+    if pauli_obj_sub.nqubits != stab_arr_super.nqubits:
+        return False
+
+    # stack the arrays
+    try:
+        stab_arrays_merged = merge_stabarrays((stab_arr_super, pauli_obj_sub))
+    except AntiCommutationError:
+        # merging the arrays failed due to some operators anti-commuting
+        return False
+    # reduce the super set
+    stab_arr_super_reduced = reduce_stabarray(stab_arr_super)
+    # reduce the merged array
+    stab_arrays_reduced = reduce_stabarray(stab_arrays_merged)
+    # if the number of stabilizers of the superset is the same as the reduced,
+    # then indeed stab_arr_sub was a subset
+    return stab_arrays_reduced.nstabs == stab_arr_super_reduced.nstabs
+
+
+def merge_stabarrays(stabarr_tuple: tuple[StabArray, ...]) -> StabArray:
+    """
+    Merges StabArrays.
+
+    Parameters
+    ----------
+    stabarr_tuple : tuple[StabArray, ...]
+        The tuple of StabArrays to be merged.
+
+    Returns
+    -------
+    StabArray
+        The merged StabArray.
+    """
+    if len(stabarr_tuple) < 2:
+        raise ValueError("At least two StabArrays are needed to merge them.")
+
+    # check if the StabArrays have the same number of qubits
+    if any(stabarr.nqubits != stabarr_tuple[0].nqubits for stabarr in stabarr_tuple):
+        raise ValueError("The StabArrays should have the same number of qubits.")
+
+    for star1, star2 in combinations(stabarr_tuple, 2):
+        # check if any of the operators of any pair anti-commute
+        if any(pauliops_anti_commute(p1, p2) for p1 in star1 for p2 in star2):
+            raise AntiCommutationError(
+                "The StabArrays should only contain commuting operators."
+            )
+
+    return StabArray.from_signed_pauli_ops(
+        [p for stabarr in stabarr_tuple for p in stabarr], validated=True
+    )
+
+
+def reduce_stabarray(stabarr: StabArray) -> StabArray:
+    """
+    Perform stabilizer BGE and then remove any trivial operators.
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to be reduced.
+
+    Returns
+    -------
+    StabArray
+        The reduced stabilizer array.
+    """
+    stabarr_bge = stabarray_bge(stabarr)
+    # remove empty stabilizers
+    return StabArray.from_signed_pauli_ops(
+        [p_op for p_op in stabarr_bge if not p_op.is_trivial],
+        validated=True,
+    )
+
+
+def reduce_stabarray_with_bookkeeping(
+    stabarr: StabArray,
+) -> tuple[StabArray, np.ndarray]:
+    """
+    Perform stabilizer BGE and then remove any trivial operators. Also return the
+    bookkeeping matrix, which is a matrix that keeps track of the row operations that
+    were performed on the stabilizer array.
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to be reduced.
+
+    Returns
+    -------
+    tuple[StabArray, np.ndarray]
+        A tuple containing the reduced stabilizer array and the bookkeeping matrix, i.e.
+        the matrix that keeps track of the row operations that were performed on the
+        stabilizer array.
+    """
+    stabarr_bge, bookkeeping_matrix = stabarray_bge_with_bookkeeping(stabarr)
+    # find which operators are non trivial after BGE
+    non_trivial_ops = [p_op for p_op in stabarr_bge if not p_op.is_trivial]
+    return (
+        StabArray.from_signed_pauli_ops(non_trivial_ops, validated=True),
+        bookkeeping_matrix,
+    )
+
+
+def reindex_stabarray(stab_array: StabArray, new_idcs: list[int]) -> StabArray:
+    """Returns an instance of a stabilizer array but with the qubit columns reindexed.
+
+    Parameters
+    ----------
+    stab_array : StabArray
+        The StabArray to be reindexed.
+    new_idcs : list[int]
+        The new indices.
+
+    Returns
+    -------
+    StabArray
+        The reindexed StabArray.
+
+    Raises
+    ------
+    ValueError
+        When the new_idcs are not unique or not as many as the n_qubits.
+    """
+    nqubits = stab_array.nqubits
+    if len(new_idcs) != len(set(new_idcs)):
+        raise ValueError("new_idcs has to have unique elements.")
+    if len(new_idcs) != nqubits:
+        raise ValueError("new_idcs should be as many as the n_qubits")
+
+    array = stab_array.array.copy()
+    reindexed_array = array.copy()
+
+    new_idcs = np.array(new_idcs)
+
+    # change the X's
+    reindexed_array[:, 0:nqubits] = array[:, new_idcs]
+    # change the Z's
+    reindexed_array[:, nqubits : 2 * nqubits] = array[:, new_idcs + nqubits]
+
+    return StabArray(reindexed_array, validated=True)
+
+
+def swap_stabarray_rows(stabarr: StabArray, i: int, j: int) -> StabArray:
+    """
+    Swap two rows of a stabilizer array in-place.
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to be modified.
+    i : int
+        The index of the first row.
+    j : int
+        The index of the second row.
+
+    Returns
+    -------
+    StabArray
+        The modified stabilizer array.
+    """
+    stabarr.array[[i, j]] = stabarr.array[[j, i]]
+    return stabarr
+
+
+def sparse_formatter(stab_list: set[str], **keywords) -> list[dict]:
+    """Given a set of Pauli string operators,
+    return a list of dicts, where dict keys are ``{'sign', 'X', 'Y', 'Z'}``. For keys
+    ``X``, ``Y``, ``Z``, value is a list of indices/positions where the i-th qubit in
+    the Pauli operator is respectively either X, Y, Z.
+
+    There is a keyword option, to allow the user to pass a dictionary
+    to convert *from* qubit index in CliffordSim, to some other indexing
+    that is more convenient for the user.
+
+    Parameters
+    ----------
+    stab_array : set[str]
+        An unordered list of strings, where each string
+        represents a Pauli string for a stabilizer operator in the set.
+
+    keywords: {'convert_dict'}
+        By supplying a dictionary that converts between qubit indices in CliffordSim
+        into qubit IDs in an embedded QEC code, that user can return dicts where the values
+        refer directly to IDs in an embedded QEC code.
+
+    Returns
+    -------
+    output_format : list[dict]
+        Reformats each string in the sparse format.
+        E.g. +ZXIIYXZII gets returned as ``{'sign':'+', 'X':(1,5), 'Z':(0,6), 'Y':(4,)}``
+    """
+
+    output_format = []
+    convert = False
+
+    for key in keywords:
+        if key == "convert_dict":
+            assert isinstance(keywords["convert_dict"], dict)
+            convert = True
+            convert_dict = keywords["convert_dict"]
+
+    for stab_op in stab_list:
+        assert stab_op[0] == "+" or stab_op[0] == "-", "Improper format of Stab Op."
+        formatted_dict = {"sign": stab_op[0], "X": [], "Y": [], "Z": []}
+
+        xlist = [m.start() for m in re.finditer("X", stab_op[1:])]
+        zlist = [m.start() for m in re.finditer("Z", stab_op[1:])]
+        ylist = [m.start() for m in re.finditer("Y", stab_op[1:])]
+
+        if len(xlist) != 0:
+            if convert:
+                xlist = [convert_dict[item] for item in xlist]
+            formatted_dict["X"].extend(xlist)
+
+        if len(zlist) != 0:
+            if convert:
+                zlist = [convert_dict[item] for item in zlist]
+            formatted_dict["Z"].extend(zlist)
+
+        if len(ylist) != 0:
+            if convert:
+                ylist = [convert_dict[item] for item in ylist]
+            formatted_dict["Y"].extend(ylist)
+
+        output_format.append(formatted_dict)
+
+    return output_format
+
+
+def stabarray_bge(stabarr: StabArray) -> StabArray:
+    """
+    Perform binary gaussian elimination on a stabilizer array.
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to perform binary gaussian elimination on.
+
+    Returns
+    -------
+    StabArray
+        The stabilizer array in its reduced row echelon form.
+    """
+    return stabarray_bge_with_bookkeeping(stabarr)[0]
+
+
+def stabarray_bge_with_bookkeeping(stabarr: StabArray) -> tuple[StabArray, np.ndarray]:
+    """
+    Performs binary gaussian elimination on a stabilizer array and returns
+    the array in its reduced row echelon form.
+    Reference:
+    https://en.wikipedia.org/wiki/Row_echelon_form#Reduced_row_echelon_form
+
+    Bookkeeping matrix explanation:
+    It also returns the bookkeeping matrix, which is a matrix that keeps track of the
+    row operations that were performed on the stabilizer array, i.e. how to transform
+    the input stabilizer array into the reduced row echelon form. If the (i, j)-th
+    element of the bookkeeping matrix is True, then the i-th stabilizer of the row
+    echelon form contains the j-th row of the initial stabilizer array.
+    In other words, to get the i-th stabilizer of the row echelon form, one should
+    multiply all the stabilizers of the initial stabilizer array with index j that
+    have a True value in the (i, j)-th element of the bookkeeping matrix.
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to perform binary gaussian elimination on.
+
+    Returns
+    -------
+    tuple[StabArray, np.ndarray]
+        A tuple containing the reduced stabilizer array and the bookkeeping matrix, i.e.
+        the matrix that keeps track of the row operations that were performed on the
+        stabilizer array.
+    """
+    stabarr_copy = stabarr.copy()
+    m, n = stabarr_copy.array.shape
+
+    # Initialize the bookkeeping matrix
+    bookkeeping_matrix = np.eye(m, dtype=bool)
+
+    h = 0  # Initialization of the pivot row
+    k = 0  # Initialization of the pivot column
+    while h < m and k < n:
+        # Find the k-th pivot:
+        i_max = np.argmax(stabarr_copy.array[h:, k]) + h
+        if stabarr_copy.array[i_max, k] == 0:
+            # No pivot in this column, pass to next column
+            k += 1
+        else:
+            # Swap rows h, imax
+            stabarr_copy = swap_stabarray_rows(stabarr_copy, h, i_max)
+
+            # Update the bookkeeping matrix
+            bookkeeping_matrix[[h, i_max]] = bookkeeping_matrix[[i_max, h]]
+
+            # Need to apply rowsum to eliminate 1s
+            # on column k.
+
+            # Do for all rows excluding pivot
+            irange = np.concatenate([np.arange(h), np.arange(h + 1, m)])
+            # Find rows with 1 in column k
+            irange_with_1_in_col_k = irange[stabarr_copy.array[irange, k] == 1]
+
+            # Apply rowsum to row idx if if st_ar[idx, k] == 1
+            stabarr_copy = reduce(
+                lambda st, i: rowsum(st, i, h),
+                irange_with_1_in_col_k,
+                stabarr_copy,
+            )
+
+            # XOR h into the irange_with_1_in_col_k in the bookkeeping_matrix
+            bookkeeping_matrix[irange_with_1_in_col_k] = np.bitwise_xor(
+                bookkeeping_matrix[irange_with_1_in_col_k], bookkeeping_matrix[h]
+            )
+
+            # Increase pivot row and column
+            h += 1
+            k += 1
+
+    return stabarr_copy, bookkeeping_matrix
+
+
+# pylint: disable=too-many-locals
+def stabarray_standard_form(stabarr: StabArray) -> tuple[StabArray, int, list[int]]:
+    """Transform a stabilizer array into a standard form. Note that this means that the
+    stabilizer array is reduced and reindexed.
+
+        1. Reduce the stabilizer array.
+        
+        2. Reorder the qubits such that the X part of the stabilizer array becomes of 
+        the form
+        
+            (I, A)
+            (0, 0)
+
+        where I is the identity matrix of size r and A is a r x (n-r) matrix and the 0 \
+        arrays have n-k-r rows.
+        
+        3. Multiply rows of the stabilizer array so that it becomes of the form
+        
+            (I, A1, A2 | B, 0, C)
+            (0,  0,  0 | D, I, E)
+            
+        where I is the identity matrix, A1, A2, B, C, D and E are matrices.
+    
+    Dimension explanation:
+    
+        - The left blocks comprise the X part of the stabilizer array and the right \
+        blocks comprise the Z part of the stabilizer array.
+        - The top blocks have r rows and the bottom blocks have n-k-r rows, where n is \
+        the number of qubits, k is the number of logical qubits and r is the rank of \
+        the X part of the stabilizer array.
+        - From left to right, the number of columns in the blocks are r, n-k-r, k for \
+        each of the Z and X parts.
+        
+    More info:
+    
+        Nielsen, M. A., & Chuang, I. L. (2011). (p.470-471) Quantum Computation and Quantum
+        Information: 10th Anniversary Edition. Cambridge University Press
+
+    Parameters
+    ----------
+    stabarr : StabArray
+        The stabilizer array to be transformed.
+
+    Returns
+    -------
+    tuple[StabArray, int, list[int]]
+        A tuple containing the reindexed stabilizer array, the rank of the X part of the
+        stabilizer array and the inverse qubit map. The inverse qubit map can be used to
+        reindex the stabilizer array to the original qubit order.
+    """
+    # Reduce the stabilizer array
+    stabarr_reduced = reduce_stabarray(stabarr)
+
+    # Name quantities to shorten notation
+    n = stabarr.nqubits  # Number of qubits
+    k = stabarr.nqubits - stabarr_reduced.nstabs  # Number of logical qubits
+
+    # Find the characteristic indices of the stabilizer array, i.e. the indices of the
+    # first non-zero entry in each row
+    characteristic_idx = [
+        np.argmax(signed_pauli_op.array) for signed_pauli_op in stabarr_reduced
+    ]
+    # Find the indices of the characteristic rows that correspond to the X part of the
+    # stabilizer array
+    characteristic_idx_x = [idx for idx in characteristic_idx if idx < n]
+
+    r = len(characteristic_idx_x)  # The rank of the X part of the stabilizer array
+
+    # Find the indices of the rows that are not characteristic of the X part
+    rest_idx = [idx for idx in range(n) if idx not in characteristic_idx_x]
+
+    # We need to order the rest_idx such that the identity array can be generated
+    # at the bottom of the stabilizer array. This is a concatenation of the I, E blocks
+    # in the standard form of the stabilizer array.
+    # 1. Isolate the bottom right block of the stabilizer array
+    bottom_right_ie_block = stabarr_reduced.z[r:, np.array(rest_idx)]
+    # 2. Perform Binary Gaussian Elimination
+    bottom_right_ie_block_bge = binary_gaussian_elimination(bottom_right_ie_block)
+    # 3. Find the characteristic indices of the bottom right block
+    ie_block_characteristic_idx = [np.argmax(row) for row in bottom_right_ie_block_bge]
+    # 4. Find the indices of the rows that are not characteristic
+    ie_block_non_characteristic_idx = [
+        idx for idx in range(len(rest_idx)) if idx not in ie_block_characteristic_idx
+    ]
+    # 5. Reorder the rest_idx such that the characteristic indices come first. This
+    # means that the identity matrix can be generated at the bottom of the stabilizer
+    rest_idx_reordered = [
+        rest_idx[idx]
+        for idx in ie_block_characteristic_idx + ie_block_non_characteristic_idx
+    ]
+
+    # Construct a new map that reorders the qubits such that the X part of the
+    # stabilizer array becomes of the form:
+    # (I, A)
+    # (0, 0)
+    # where I is the identity matrix of size r and A is a r x (n-r) matrix and the 0
+    # arrays have n-k-r columns
+    qbit_map = characteristic_idx_x + rest_idx_reordered
+    inv_qbit_map = [qbit_map.index(idx) for idx in range(stabarr.nqubits)]
+
+    # Reindex the stabilizer array according to the new map.
+    # Only the qubits are reindexed by swapping columns in the X and Z parts of the
+    # stabilizer array.
+    reindexed_stabarr = reindex_stabarray(stabarr_reduced, qbit_map)
+
+    # Create the identity matrix on the bottom part of the reindexed stabilizer array
+    for i in range(n - k - r):
+        # Find the array that is to be made an identity matrix
+        arr_to_be_eye = reindexed_stabarr.z[r:, r : n - k]
+        # NOTE: Because arr_to_be_eye is a subarray of the reindexed_stabarr, we may
+        # need to offset the indices by r when modifying the reindexed_stabarr
+
+        # if the i-th diagonal element is not 1, then swap the i-th row with a row that has
+        # 1 in the i-th column
+        if arr_to_be_eye[i, i] == 0:
+            # find a row with 1 in the i-th column and swap it with the i-th row
+            row_with_one = np.argmax(arr_to_be_eye[i:, i] == 1) + i
+            # if such a row is not found, then raise an error
+            if row_with_one == i:
+                raise ValueError(
+                    "Cannot create identity matrix inside the reindexed "
+                    "stabilizer array"
+                )
+                # NOTE: if this ever fails for a valid code, it may be worth checking if
+                # the error can be resolved by reindexing the StabArray further
+
+            # swap the rows
+            reindexed_stabarr = swap_stabarray_rows(
+                reindexed_stabarr, r + i, r + row_with_one
+            )
+
+        # make the i-th column of the reindexed stabilizer array to be that of an
+        # identity matrix
+        rows_to_make_zero = [
+            j for j in range(n - k - r) if j != i and arr_to_be_eye[j, i] == 1
+        ]
+        reindexed_stabarr = reduce(
+            lambda acc, row, _i=i: rowsum(acc, r + row, r + _i),
+            rows_to_make_zero,
+            reindexed_stabarr,
+        )
+
+    return reindexed_stabarr, r, inv_qbit_map
+
+
+def subtract_stabarrays(
+    stab_array: StabArray, stab_array_to_remove: StabArray
+) -> StabArray:
+    """Given 2 stabilizer arrays, remove from the first one any
+    occurrence of stabilizers found in the second one.
+
+    Parameters
+    ----------
+    stab_array : StabArray
+        The StabArray from which the other is subtracted.
+    stab_array_to_remove : StabArray
+        The StabArray that is subtracted from the other.
+
+    Returns
+    -------
+    StabArray
+        The resulting StabArray.
+    """
+    # check if the StabArrays have the same number of qubits
+    if stab_array.nqubits != stab_array_to_remove.nqubits:
+        raise ValueError("The StabArrays should have the same number of qubits.")
+
+    if any(
+        pauliops_anti_commute(p, q) for p in stab_array_to_remove for q in stab_array
+    ):
+        raise ValueError("The operators of the StabArrays should not anti-commute.")
+
+    # set stab_array in its reduced form
+    stab_array_to_remove = reduce_stabarray(stab_array_to_remove)
+
+    # Do the subtraction
+    subtracted_paulis = []
+    for pauli_op in stab_array:
+        # Create a temporary StabArray with the operator from which we will subtract
+        # the operators of the other StabArray
+        # This gives us access of the rowsum function
+        temp_stabarr = StabArray.from_signed_pauli_ops(
+            list(stab_array_to_remove) + [pauli_op],
+            validated=True,
+        )
+
+        # Find for every operator A in stab_array_to_remove the characteristic index:
+        # np.argmax(st.array[idx, :] == 1)
+        # If at the characteristic index the last operator has 1, then multiply
+        # A into the last operator.
+        temp_stabarr = reduce(
+            lambda st, idx, _pauli=pauli_op: (
+                rowsum(st, -1, idx)
+                if _pauli.array[np.argmax(st.array[idx, :] == 1)] == 1
+                else st
+            ),
+            range(temp_stabarr.nstabs - 1),
+            temp_stabarr,
+        )
+
+        subtracted_paulis.append(temp_stabarr[-1])
+
+    # Combine the result
+    result_arr = StabArray.from_signed_pauli_ops(subtracted_paulis, validated=True)
+
+    # Reduce the result
+    return reduce_stabarray(result_arr)

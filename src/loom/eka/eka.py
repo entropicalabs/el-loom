@@ -21,6 +21,7 @@ from .utilities.validation_tools import dataclass_params
 
 @dataclass(**dataclass_params)
 class Eka:
+    # pylint: disable=line-too-long
     """
     This dataclass contains all the information necessary to execute a
     logical circuit with embedded error correction.
@@ -31,7 +32,7 @@ class Eka:
         Lattice on which the Eka is defined
     blocks : tuple[Block, ...]
         Inital state of the block defining the logical qubits.
-    operations : tuple[Operation, ...] | tuple[tuple[Operation, ...], ...]
+    operations : tuple[:class:`loom.eka.operations.base_operation.Operation`, ...] | tuple[tuple[:class:`loom.eka.operations.base_operation.Operation`, ...], ...]
         Operations to be executed on the block. Each tuple of operations is executed
         in parallel. The operations are executed in the order they are given in the
         tuple but their circuits are combined such that they can be executed in
@@ -90,7 +91,7 @@ class Eka:
                         "are too large for the lattice."
                     )
 
-        # Add checks for ancilla qubits
+        # TODO: Add checks for ancilla qubits # pylint: disable=fixme
 
         return blocks
 

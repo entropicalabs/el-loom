@@ -1,7 +1,6 @@
 __pycache__/
 .venv
 .vscode/*
-poetry.lock
 .python-version
 
 docs/build/*

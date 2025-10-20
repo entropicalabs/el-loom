@@ -8,7 +8,9 @@ Ltd.
 """
 
 from __future__ import annotations
+from collections.abc import Iterable
 from math import cos, pi
+from functools import reduce
 
 from enum import Enum
 import numpy as np
@@ -183,6 +185,116 @@ class Direction(str, Enum):
     def to_orientation(self) -> Orientation:
         """Convert the direction to an orientation."""
         return Orientation.from_direction(self)
+
+    def mirror_across_orientation(self, orientation: Orientation) -> Direction:
+        """Get the mirrored direction across the given orientation."""
+        return self if self.to_orientation() == orientation else self.opposite()
+
+
+class DiagonalDirection(str, Enum):
+    """Diagonal direction indicator for Operations (e.g. Grow and Shrink)."""
+
+    TOP_LEFT = "top-left"
+    TOP_RIGHT = "top-right"
+    BOTTOM_LEFT = "bottom-left"
+    BOTTOM_RIGHT = "bottom-right"
+
+    # Map diagonals to their component directions
+
+    @property
+    def components(self):
+        """Return the two cardinal directions composing this diagonal."""
+        match self.value:
+            case "top-left":
+                return (Direction.TOP, Direction.LEFT)
+            case "top-right":
+                return (Direction.TOP, Direction.RIGHT)
+            case "bottom-left":
+                return (Direction.BOTTOM, Direction.LEFT)
+            case "bottom-right":
+                return (Direction.BOTTOM, Direction.RIGHT)
+
+    @classmethod
+    def _missing_(cls, value):
+        """Allow inputs with upper-case characters. For more details, see the
+        documentation of `enum_missing` at the beginning of the file."""
+        return enum_missing(cls, value)
+
+    def __str__(self):
+        return str(self.value)
+
+    @classmethod
+    def from_directions(
+        cls, directions: tuple[Direction, Direction]
+    ) -> DiagonalDirection:
+        """Get the diagonal direction from two cardinal directions. The two
+        directions must be perpendicular."""
+
+        if len(directions) != 2:
+            raise ValueError("Exactly two directions are required.")
+        if directions[0].to_orientation() == directions[1].to_orientation():
+            raise ValueError(
+                "The two directions must be perpendicular."
+                f" Got {directions[0]} and {directions[1]}."
+            )
+        # Order should not matter
+        directions_pair = frozenset(directions)
+        for diag in cls:
+            if frozenset(diag.components) == directions_pair:
+                return diag
+        raise ValueError(f"Invalid direction pair: {directions}.")
+
+    @classmethod
+    def from_vector(cls, vector: tuple[int, ...]) -> DiagonalDirection:
+        """Get the diagonal direction from a 2D vector. The vector should have only
+        two non-zero components in the first and the second dimension. The
+        direction is determined by the sign of the components. The direction
+        is returned as a DiagonalDirection enum.
+        """
+        if len(vector) != 2:
+            raise ValueError("Vector must be 2D.")
+
+        hor_coord, vert_coord = vector
+        if hor_coord == 0 or vert_coord == 0:
+            raise ValueError("Vector cannot have zero components.")
+
+        hor_direction = Direction.from_vector((hor_coord, 0))
+        vert_direction = Direction.from_vector((0, vert_coord))
+        return DiagonalDirection.from_directions((hor_direction, vert_direction))
+
+    def to_vector(self) -> tuple[int, int]:
+        """Convert the diagonal direction to a 2D vector."""
+        vectors = [direction.to_vector() for direction in self.components]
+        # Sum the vectors to get the resulting vector
+        return reduce(
+            lambda acc, vec: (acc[0] + vec[0], acc[1] + vec[1]), vectors, (0, 0)
+        )
+
+    def opposite(self) -> DiagonalDirection:
+        """Get the opposite diagonal direction."""
+        opposite_directions = [direction.opposite() for direction in self.components]
+        return DiagonalDirection.from_directions(opposite_directions)
+
+    def direction_along_orientation(self, orientation: Orientation) -> Direction:
+        """Get the cardinal direction along the given orientation."""
+        return next(
+            direction
+            for direction in self.components
+            if direction.to_orientation() == orientation
+        )
+
+    def mirror_across_orientation(self, orientation: Orientation) -> DiagonalDirection:
+        """Get the mirrored diagonal direction across the given orientation."""
+        return DiagonalDirection.from_directions(
+            [
+                direction.mirror_across_orientation(orientation)
+                for direction in self.components
+            ]
+        )
+
+    def __iter__(self) -> Iterable[Direction]:
+        """Allow iteration over the component directions."""
+        return iter(self.components)
 
 
 class Orientation(str, Enum):

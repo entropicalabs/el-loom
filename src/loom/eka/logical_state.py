@@ -236,6 +236,9 @@ class LogicalState:
 
     def get_tableau(self, block: Block) -> np.ndarray:
         """Given a Block, return the tableau of the logical state.
+        TODO: When shifting to multiple Blocks, we can instead take as input a list of
+        Block objects and match for example a 6 logical qubit state on 3 Block objects
+        that each have 2 logical qubits.
 
         Parameters
         ----------

@@ -8,11 +8,10 @@ Ltd.
 """
 
 import unittest
+import logging
 
 from loom.eka import SyndromeCircuit, Circuit, Channel
 from loom.eka.utilities import loads, dumps
-
-import logging
 
 
 class TestSyndromeCircuit(unittest.TestCase):

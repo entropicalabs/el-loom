@@ -9,7 +9,7 @@
 project = "loom"
 copyright = "2025, Entropica Labs Pte Ltd"
 author = "Entropica Labs Pte Ltd"
-release = "0.1.0"
+# release = "0.1.0" # TODO uncomment later
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -37,6 +37,7 @@ autoclass_content = "both"
 
 # html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
+html_logo = "_static/entropica_logo.svg"
 html_theme_options = {
     "collapse_navigation": False,
     "navigation_depth": 5,

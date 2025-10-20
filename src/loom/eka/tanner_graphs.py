@@ -231,7 +231,7 @@ class ClassicalTannerGraph:
         which need to be of the same time pauli type, and the graph will be generated
         from them. The graph can be converted into a list of stabilizers. The check type
         of the Tanner graph can be modified using the set_check_type method. Lastly, the
-        class can also be instatiated from ClassicalParityCheckMatrix object, where the
+        class can also be instantiated from ClassicalParityCheckMatrix object, where the
         matrix is mapped to a Tanner graph and the check nodes are labeled as 'check'.
 
         Parameters

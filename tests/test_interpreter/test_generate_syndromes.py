@@ -1,6 +1,15 @@
+"""
+Copyright (c) Entropica Labs Pte Ltd 2025.
+
+Use, distribution and reproduction of this program in its source or compiled
+form is prohibited without the express written consent of Entropica Labs Pte
+Ltd.
+
+"""
+
+# pylint: disable= duplicate-code
 import unittest
 from copy import deepcopy
-from itertools import product
 
 from loom.eka import Lattice, Block, Stabilizer, PauliOperator
 from loom.interpreter import InterpretationStep, Syndrome
@@ -8,6 +17,8 @@ from loom.interpreter.applicator import generate_syndromes
 
 
 class TestGenerateSyndromes(unittest.TestCase):
+    """Tests for the generate_syndromes function."""
+
     def setUp(self):
 
         self.square_2d_lattice = Lattice.square_2d((10, 20))
@@ -196,7 +207,7 @@ class TestGenerateSyndromes(unittest.TestCase):
             (  # Regular Syndrome generation for all stabs
                 {
                     "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "block": self.rot_surf_code_1,
                     "stab_measurements": [
                         tuple((f"c_{q}", 3) for q in stab.ancilla_qubits)
                         for stab in self.rot_surf_code_1.stabilizers
@@ -216,7 +227,7 @@ class TestGenerateSyndromes(unittest.TestCase):
             (  # Syndrome generation for stabilizers with previous round
                 {
                     "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "block": self.rot_surf_code_1,
                     "stab_measurements": [
                         tuple((f"c_{q}", 4) for q in stab.ancilla_qubits)
                         for stab in self.rot_surf_code_1.stabilizers
@@ -243,7 +254,7 @@ class TestGenerateSyndromes(unittest.TestCase):
                             if set(stab.pauli) == {"Z"}
                         ]
                     ),
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "block": self.rot_surf_code_1,
                     "stab_measurements": [
                         tuple((f"c_{q}", 0) for q in stab.data_qubits)
                         for stab in z_stabs
@@ -270,7 +281,7 @@ class TestGenerateSyndromes(unittest.TestCase):
                             if set(stab.pauli) == {"X"}
                         ]
                     ),
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "block": self.rot_surf_code_1,
                     "stab_measurements": [tuple() for _ in x_stabs],
                     "interpretation_step": deepcopy(self.base_step),
                 },
@@ -287,7 +298,7 @@ class TestGenerateSyndromes(unittest.TestCase):
             (  # Syndrome generation with existing stabilizer updates (e.g. shrink)
                 {
                     "stabilizers": self.rot_surf_code_1.stabilizers,
-                    "current_block_id": self.rot_surf_code_1.uuid,
+                    "block": self.rot_surf_code_1,
                     "stab_measurements": [
                         tuple((f"c_{q}", 3) for q in stab.ancilla_qubits)
                         for stab in self.rot_surf_code_1.stabilizers

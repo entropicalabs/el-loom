@@ -17,7 +17,7 @@ Output components: What the world needs
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Currently, the interpretation process returns the final instance of :class:`~loom.interpreter.interpretation_step.InterpretationStep` that bears all changes that happened during interpretation.
-This is very convenient for testing and debugging but this is not the minimum information, only a few fields are actually necessary to run a QEC routine on a QPU and/or simulator.
+This is very convenient for testing and debugging but it is not the minimum information: only a few fields are actually necessary to run a QEC routine on a QPU and/or simulator.
 This is what we will describe here as output components.
 
 - :attr:`~loom.interpreter.interpretation_step.InterpretationStep.final_circuit` : :code:`Circuit`
@@ -42,7 +42,7 @@ These are the values we input to the decoding algorithms (as well as :class:`~lo
 - :attr:`~loom.interpreter.interpretation_step.InterpretationStep.logical_observables` : :code:`tuple[LogicalObservable, ...]`
 
 The logical observables are collections of physical measurements that add up to the value of the measurement of a logical qubit.
-The value of a logical observable is given by the sum modulo of all the physical measurements it's composed of.
+The value of a logical observable is given by the sum modulo all the physical measurements it is composed of.
 
 Building components: What the world does not want to see
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -94,10 +94,10 @@ This is a counter that is local in time and not bound to the physical location o
 
 This counter keeps track of how many times a qubit is measured during the whole set of operations.
 It maps the label of the classical channel that is the target of the measurement operation to the index at which that measurement is stored.
-The :py:attr:`~loom.interpreter.interpretation_step.InterpretationStep.cbit_counter` field is used to generate the :code:`Cbit`s automatically during interpretation.
-The method `get_new_cbit_MUT` is responsible of incrementing the counter and returning the :code:`Cbit`.
+The :py:attr:`~loom.interpreter.interpretation_step.InterpretationStep.cbit_counter` field is used to generate the :code:`Cbit` s automatically during interpretation.
+The method :code:`get_new_cbit_MUT` is responsible of incrementing the counter and returning the :code:`Cbit`.
 
-E.g. qubit :code:`"(4, 2, 0)"` is measured in the classical register :code:`"c_(4, 2, 0)"` for the third time, th channel used will be labelled :code:`"c_(4, 2, 0)_2"` and the resulting cbit counter is :code:`{"c_(4, 2, 0)": 2}`.
+E.g. qubit :code:`"(4, 2, 0)"` is measured in the classical register :code:`"c_(4, 2, 0)"` for the third time, the channel used will be labelled :code:`"c_(4, 2, 0)_2"` and the resulting cbit counter is :code:`{"c_(4, 2, 0)": 2}`.
 The associated :code:`Cbit` is :code:`(c_(4, 2, 0), 2)`.
 During the next round of syndrome extraction, if :code:`"(4, 2, 0)"` is measured again onto the register :code:`"c_(4, 2, 0)"`, :py:attr:`~loom.interpreter.interpretation_step.InterpretationStep.get_new_cbit_MUT` will be called and :py:attr:`~loom.interpreter.interpretation_step.InterpretationStep.cbit_counter` will be incremented. The channel created will be labelled :code:`"c_(4, 2, 0)_3"`.
 The resulting :code:`Cbit` will be :code:`(c_(4, 2, 0), 3)`.
@@ -141,7 +141,7 @@ Here are examples of fields that are updated throughout interpretation of lattic
 The two most important (and tricky) fields to modify are :code:`updates` and :code:`evolution`.
 These fields are responsible for the automatic generation of :class:`~loom.interpreter.syndrome.Syndrome` and corrections.
 
-A convention we follow for the two codes described here is that logical operators are tied to the top-left qubit (minimum coordinates in all directions).
+A convention that we follow for the two codes described here is that logical operators are tied to the top-left qubit (minimum coordinates in all directions).
 The consequence of this is that these operators are displaced if we add new qubits to the top-left of the block.
 E.g. growing a rotated surface code to the left will displace the logical operators by the same distance as specified in grow.
 
@@ -174,7 +174,7 @@ They satisfy the relation: :math:`\{S_{\text{required}}\} = \{S_i | L' = L\prod_
 
   where :code:`old_long_op` grew into :code:`new_long_op`.
 
-  Nothing happens to the other operator.
+  Nothing happens to the other operators.
 
   Note that by default a grow towards the left will displace the associated logical operator (short/single qubit operator), populating the evolution dictionary with the required stabilizers and update dictionary with the most recent syndromes:
 
@@ -247,7 +247,7 @@ They satisfy the relation: :math:`\{S_{\text{required}}\} = \{S_i | L' = L\prod_
 - **Split** distributes the logical information in two blocks that are separated in space.
   This is done through physical qubits measurements.
   Split can be understood as the converse operation to merge.
-  The measurements occuring during a split need to be kept track of to update the state of logical operators and stabilizers.
+  The measurements occurring during a split need to be kept track of to update the state of logical operators and stabilizers.
   
   If no logical operator is measured out (:code:`new_short_op_1` is the same as :code:`old_short_op_1`), we have:\
 
@@ -307,9 +307,7 @@ They satisfy the relation: :math:`\{S_{\text{required}}\} = \{S_i | L' = L\prod_
 
         evolution = {
             new_horizontal_op.uuid: (old_horizontal_op.uuid,),
-        } | {
-
-        }
+        } 
         updates = {
             new_horizontal_op.uuid: tuple(meas for meas in shrink_measurements)
         }
@@ -361,7 +359,7 @@ They satisfy the relation: :math:`\{S_{\text{required}}\} = \{S_i | L' = L\prod_
 - **Split** distributes the logical information in two blocks that are separated in space.
   This is done through physical qubits measurements.
   Split can be understood as the converse operation to merge.
-  The measurements occuring during a split need to be kept track of to update the state of logical operators and stabilizers.
+  The measurements occurring during a split need to be kept track of to update the state of logical operators and stabilizers.
   In the case of a horizontal split, if no logical operator is measured out (:code:`new_horizontal_op_1` is the same as :code:`old_horizontal_op_1`), we have:
 
   .. code-block:: python

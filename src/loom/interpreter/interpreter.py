@@ -51,7 +51,7 @@ def interpret_operation(
     step : InterpretationStep
         Current InterpretationStep to which the modifications due to the operation
         should be applied
-    op : Operation
+    op : :class:`loom.eka.operations.base_operation.Operation`
         Operation to be interpreted
     same_timeslice : bool
         Flag indicating whether the operation is part of the same timestep as the

@@ -17,7 +17,6 @@ from .pauli_computation import g_npfunc
 
 
 # Dynamically bound type variable for PauliArray and its subclasses.
-settings_flag_775 = "e59082a9234ffe87"
 T = TypeVar("T", bound=PauliArray)
 
 

@@ -9,7 +9,7 @@ Ltd.
 
 import numpy as np
 import plotly.graph_objs as go
-import igraph
+import networkx as nx
 
 from loom.eka import Circuit
 
@@ -447,9 +447,9 @@ def get_label_for_circuit(circ: Circuit) -> str:
     return circ.name
 
 
-def convert_circuit_to_igraph(circ: Circuit) -> tuple[igraph.Graph, list[str]]:
+def convert_circuit_to_nx_graph(circ: Circuit) -> tuple[nx.DiGraph, list[str]]:
     """
-    Construct an igraph graph from a circuit. The nodes of the graph are all the
+    Construct a NetworkX directed graph (DiGraph) from a circuit. The nodes of the graph are all the
     subcircuits contained in the circuit object. The edges are directed from every
     circuit to its subcircuits.
 
@@ -460,14 +460,12 @@ def convert_circuit_to_igraph(circ: Circuit) -> tuple[igraph.Graph, list[str]]:
 
     Returns
     -------
-    igraph.Graph
-        igraph graph for the circuit
-    list[str]
-        List of labels for the nodes in BFS traversal order
+    nx.DiGraph: Directed graph representing the circuit
+    list[str]: List of labels for the nodes in BFS traversal order
     """
-    graph = igraph.Graph(directed=True)
+    graph = nx.DiGraph()
     labels_nodes = []
-    graph.add_vertex(name=circ.id)
+    graph.add_node(circ.id)
     labels_nodes.append(get_label_for_circuit(circ))
 
     # This is the Breadth First Search (BFS) traversal of a tree:
@@ -478,10 +476,9 @@ def convert_circuit_to_igraph(circ: Circuit) -> tuple[igraph.Graph, list[str]]:
 
         for c in next_circuit.circuit:  # Iterate over all subcircuits
             if len(c) > 0:  # Skip empty tuples
-                graph.add_vertex(name=c[0].id)  # Add node to graph
+                graph.add_node(c[0].id)  # Add node to graph
                 graph.add_edge(
-                    graph.vs.find(name=next_circuit.id).index,
-                    graph.vs.find(name=c[0].id).index,
+                    next_circuit.id, c[0].id
                 )  # Add edge from parent circuit to this subcircuit
                 # Add label for the plot
                 labels_nodes.append(get_label_for_circuit(c[0]))

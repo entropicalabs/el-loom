@@ -13,6 +13,7 @@ import numpy as np
 from loom.eka import Lattice, LatticeType
 
 
+# pylint: disable=invalid-name, too-many-instance-attributes, unnecessary-lambda-assignment, protected-access
 class TestLattice(unittest.TestCase):
     """Test suite for the Lattice class. These tests cover the creation of custom and
     default lattices, validation of inputs, and the behavior of various helper methods.
@@ -345,7 +346,7 @@ class TestLattice(unittest.TestCase):
             for ind, lat in enumerate(self.default_list[name]):
                 fail_msg = ("Infinite " if ind else "Finite ") + _msg
 
-                self.assertTrue(lat.size == None if ind else attr["size"], fail_msg)
+                self.assertTrue(lat.size is None if ind else attr["size"], fail_msg)
                 self.assertTrue(lat.lattice_type == attr["type"], fail_msg)
                 self.assertTrue(lat.basis_vectors == attr["basis_vec"], fail_msg)
                 self.assertTrue(lat.lattice_vectors == attr["lat_vec"], fail_msg)

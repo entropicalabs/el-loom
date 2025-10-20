@@ -1091,6 +1091,26 @@ class TestBlock(unittest.TestCase):  # pylint: disable=too-many-public-methods
         with self.assertRaises(ValueError):
             Block.from_blocks([self.rotated_surface_code, self.rotated_surface_code])
 
+    def test_stabilizers_labels(self):
+        """Test the stabilizers_labels property."""
+
+        expected_labels = {}
+
+        for stabilizer in self.rotated_surface_code.stabilizers:
+            expected_labels[stabilizer.uuid] = {
+                "space_coordinates": stabilizer.ancilla_qubits[0]
+            }
+
+        self.assertEqual(self.rotated_surface_code.stabilizers_labels, expected_labels)
+
+    def test_get_stabilizer_label(self):
+        """Test the correct extraction of a single stabilizer label."""
+
+        for stabilizer in self.rotated_surface_code.stabilizers:
+            expected_label = {"space_coordinates": stabilizer.ancilla_qubits[0]}
+            label = self.rotated_surface_code.get_stabilizer_label(stabilizer.uuid)
+            self.assertEqual(label, expected_label)
+
 
 if __name__ == "__main__":
     unittest.main()

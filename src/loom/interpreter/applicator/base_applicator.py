@@ -36,7 +36,7 @@ class BaseApplicator:  # pylint: disable=too-few-public-methods
     def apply(
         self,
         interpretation_step: InterpretationStep,
-        operation: "Operation",
+        operation: Operation,
         same_timeslice: bool,
         debug_mode: bool,
     ) -> InterpretationStep:
@@ -51,7 +51,7 @@ class BaseApplicator:  # pylint: disable=too-few-public-methods
         ----------
         interpretation_step : InterpretationStep
             Interpretation step containing the blocks to be modified.
-        operation : Operation
+        operation : :class:`loom.eka.operations.base_operation.Operation`
             The operation to be applied. It should be an instance of a class
             that is registered in `supported_operations`.
         same_timeslice : bool

@@ -1,4 +1,4 @@
-# This can be done automatically :
+# This can be done automatically:
 valid_circuit = Circuit(
     name="valid_circuit",
     circuit=Circuit.construct_padded_circuit_time_sequence(  # Automatically pads the circuit

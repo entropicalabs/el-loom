@@ -19,7 +19,7 @@ allows users to easily analyze the structure of their quantum error correction c
 After importing the :mod:`~loom.visualizer` package, you can create a 
 :class:`~loom.visualizer.stabilizer_visualizer.StabilizerPlot` instance using a 
 :class:`~loom.eka.lattice.Lattice` object. The :class:`~loom.eka.lattice.Lattice` will 
-form the grid on which data qubits will be plotted, and can be visualized using the 
+form the grid on which data qubits will be plotted and can be visualized using the 
 :func:`~loom.visualizer.stabilizer_visualizer.StabilizerPlot.add_dqubit_traces` method.
 
 .. code-block:: python

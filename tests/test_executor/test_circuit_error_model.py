@@ -1,3 +1,12 @@
+"""
+Copyright (c) Entropica Labs Pte Ltd 2025.
+
+Use, distribution and reproduction of this program in its source or compiled
+form is prohibited without the express written consent of Entropica Labs Pte
+Ltd.
+
+"""
+
 import math
 import random
 import unittest
@@ -26,6 +35,7 @@ from loom.executor import (
 from loom.eka.operations import MeasureBlockSyndromes
 from loom.interpreter import interpret_eka
 
+# pylint: disable=too-many-instance-attributes, duplicate-code
 gate_set = {
     "x",
     "y",
@@ -55,7 +65,10 @@ gate_set = {
 }
 
 
+# pylint: disable=missing-class-docstring
 class TestCircuitErrorModel(unittest.TestCase):
+    """Test the CircuitErrorModel class."""
+
     def setUp(self):
         """
         Set up a circuit for a rsc with a measurement operation.
@@ -367,7 +380,7 @@ class TestCircuitErrorModel(unittest.TestCase):
 
         try:
             instance = SimpleErrorModel(circuit=self.meas_circ)
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             self.fail(f"Instantiation failed with exception: {e}")
 
         # Optionally check the instance type
@@ -464,7 +477,7 @@ class TestCircuitErrorModel(unittest.TestCase):
 
         # Should raise ValidationError if gate_error_probabilities is not a callable
         with self.assertRaises(TypeError):
-            instance = CircuitErrorModel(
+            _ = CircuitErrorModel(
                 circuit=self.meas_circ,
                 gate_error_probabilities={
                     "x": "not_a_callable",
@@ -490,7 +503,7 @@ class TestCircuitErrorModel(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             # Should raise ValueError if time dependent and gate_duration not defined
-            instance = CircuitErrorModel(
+            _ = CircuitErrorModel(
                 circuit=self.meas_circ,
                 is_time_dependent=True,
                 error_type=ErrorType.PAULI_X,
@@ -536,7 +549,7 @@ class TestCircuitErrorModel(unittest.TestCase):
     def test_asymmetric_depolarize(self):
         """Test defining an asymmetric depolarizing error model."""
         unrolled = Circuit.unroll(self.meas_circ)
-        gate_set = {op.name for layer in unrolled for op in layer if op is not None}
+        g_set = {op.name for layer in unrolled for op in layer if op is not None}
         t1 = 0.01
         t2 = 0.02
         gate_duration = 0.01
@@ -545,15 +558,15 @@ class TestCircuitErrorModel(unittest.TestCase):
             circuit=self.meas_circ,
             t1=t1,
             t2=t2,
-            gate_durations={g: gate_duration for g in gate_set},
+            gate_durations={g: gate_duration for g in g_set},
         )
 
         t = gate_duration
         exp_t_t1 = math.exp(-t / t1)
-        pX = pY = (1 - exp_t_t1) / 4
+        px = py = (1 - exp_t_t1) / 4
         exp_t_t2 = math.exp(-t / t2)
-        pZ = (1 - exp_t_t2) / 2 - pX
-        expected = [pX, pY, pZ]
+        pz = (1 - exp_t_t2) / 2 - px
+        expected = [px, py, pz]
 
         self.assertEqual(
             model.get_tick_error_probability(step),
@@ -563,8 +576,8 @@ class TestCircuitErrorModel(unittest.TestCase):
     def test_idle_model(self):
         """Test idle error model with a fixed error probability."""
         unrolled = Circuit.unroll(self.meas_circ)
-        gate_set = {op.name for layer in unrolled for op in layer if op is not None}
-        gate_durations = {g: 0.01 for g in gate_set if g != "cz"}
+        g_set = {op.name for layer in unrolled for op in layer if op is not None}
+        gate_durations = {g: 0.01 for g in g_set if g != "cz"}
         gate_durations["cz"] = 0.02
         step = 2
         model = CircuitErrorModel(
@@ -587,7 +600,7 @@ class TestCircuitErrorModel(unittest.TestCase):
     def test_asymmetric_depolarize_zero_t1_t2(self):
         """Test asymmetric depolarizing error model with t1 and t2 set to 0."""
         unrolled = Circuit.unroll(self.meas_circ)
-        gate_set = {op.name for layer in unrolled for op in layer if op is not None}
+        g_set = {op.name for layer in unrolled for op in layer if op is not None}
         t1 = 0
         t2 = 0
         gate_duration = 0.01
@@ -596,7 +609,7 @@ class TestCircuitErrorModel(unittest.TestCase):
             circuit=self.meas_circ,
             t1=t1,
             t2=t2,
-            gate_durations={g: gate_duration for g in gate_set},
+            gate_durations={g: gate_duration for g in g_set},
         )
 
         expected = [0.25, 0.25, 0.25]
@@ -610,7 +623,7 @@ class TestCircuitErrorModel(unittest.TestCase):
 
         channels = [Channel() for _ in range(4)]
         # Define a simple circuit and input parameters for the error model
-        self.simpleCircuitTest = {
+        simple_circuit_test = {
             "channels": channels,
             "circuit": Circuit(
                 name="simple_circuit",
@@ -680,9 +693,9 @@ class TestCircuitErrorModel(unittest.TestCase):
 
         with self.subTest("Time Independent X Error Model"):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
+                circuit=simple_circuit_test["circuit"],
                 is_time_dependent=False,
-                gate_error_probabilities=self.simpleCircuitTest[
+                gate_error_probabilities=simple_circuit_test[
                     "gate_error_probabilities_time_independent"
                 ],
                 error_type=ErrorType.PAULI_X,
@@ -690,31 +703,31 @@ class TestCircuitErrorModel(unittest.TestCase):
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[0][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_independent"][
-                    "x"
-                ](0),
+                simple_circuit_test["gate_error_probabilities_time_independent"]["x"](
+                    0
+                ),
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[0][2]),
-                self.simpleCircuitTest["gate_error_probabilities_time_independent"][
-                    "cz"
-                ](None),
+                simple_circuit_test["gate_error_probabilities_time_independent"]["cz"](
+                    None
+                ),
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[1][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_independent"][
-                    "z"
-                ](None),
+                simple_circuit_test["gate_error_probabilities_time_independent"]["z"](
+                    None
+                ),
             )
         with self.subTest("Time Dependent Y Error Model, Before Gate"):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
+                circuit=simple_circuit_test["circuit"],
                 is_time_dependent=True,
-                gate_error_probabilities=self.simpleCircuitTest[
+                gate_error_probabilities=simple_circuit_test[
                     "gate_error_probabilities_time_dependent"
                 ],
-                gate_durations=self.simpleCircuitTest["gate_durations"],
-                global_time_error_probability=self.simpleCircuitTest[
+                gate_durations=simple_circuit_test["gate_durations"],
+                global_time_error_probability=simple_circuit_test[
                     "global_time_error_probability_time_dependent"
                 ],
                 error_type=ErrorType.PAULI_Y,
@@ -730,42 +743,34 @@ class TestCircuitErrorModel(unittest.TestCase):
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[1][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_dependent"]["z"](
-                    4
-                ),
+                simple_circuit_test["gate_error_probabilities_time_dependent"]["z"](4),
             )
         with self.subTest("Time Dependent Z Error Model, After Gate"):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
+                circuit=simple_circuit_test["circuit"],
                 is_time_dependent=True,
-                gate_error_probabilities=self.simpleCircuitTest[
+                gate_error_probabilities=simple_circuit_test[
                     "gate_error_probabilities_time_dependent"
                 ],
-                gate_durations=self.simpleCircuitTest["gate_durations"],
+                gate_durations=simple_circuit_test["gate_durations"],
                 error_type=ErrorType.PAULI_Z,
                 application_mode=ApplicationMode.AFTER_GATE,
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[0][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_dependent"]["x"](
-                    2
-                ),
+                simple_circuit_test["gate_error_probabilities_time_dependent"]["x"](2),
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[0][2]),
-                self.simpleCircuitTest["gate_error_probabilities_time_dependent"]["cz"](
-                    4
-                ),
+                simple_circuit_test["gate_error_probabilities_time_dependent"]["cz"](4),
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[1][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_dependent"]["z"](
-                    6
-                ),
+                simple_circuit_test["gate_error_probabilities_time_dependent"]["z"](6),
             )
             self.assertEqual(
                 model.get_gate_error_probability(model.circuit.circuit[2][0]),
-                self.simpleCircuitTest["gate_error_probabilities_time_dependent"][
+                simple_circuit_test["gate_error_probabilities_time_dependent"][
                     "measurement"
                 ](7),
             )
@@ -773,87 +778,91 @@ class TestCircuitErrorModel(unittest.TestCase):
             "X Error Model, End of Tick, Time Independent, no tick time param"
         ):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
-                global_time_error_probability=self.simpleCircuitTest[
+                circuit=simple_circuit_test["circuit"],
+                global_time_error_probability=simple_circuit_test[
                     "global_time_error_probability_time_independant"
                 ],
                 is_time_dependent=False,
-                gate_durations=self.simpleCircuitTest["gate_durations"],
+                gate_durations=simple_circuit_test["gate_durations"],
                 error_type=ErrorType.PAULI_X,
                 application_mode=ApplicationMode.END_OF_TICK,
             )
             self.assertEqual(
                 model.get_tick_error_probability(),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_time_independant"
-                ](None, None),
+                simple_circuit_test["global_time_error_probability_time_independant"](
+                    None, None
+                ),
             )
             self.assertEqual(
                 model.get_tick_error_probability(),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_time_independant"
-                ](None, None),
+                simple_circuit_test["global_time_error_probability_time_independant"](
+                    None, None
+                ),
             )
         with self.subTest(
             "X Error Model, End of Tick, Time Dependent, with tick time param"
         ):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
+                circuit=simple_circuit_test["circuit"],
                 is_time_dependent=True,
-                global_time_error_probability=self.simpleCircuitTest[
+                global_time_error_probability=simple_circuit_test[
                     "global_time_error_probability_with_both_params"
                 ],
-                gate_durations=self.simpleCircuitTest["gate_durations"],
+                gate_durations=simple_circuit_test["gate_durations"],
                 error_type=ErrorType.PAULI_Z,
                 application_mode=ApplicationMode.END_OF_TICK,
             )
             self.assertEqual(
                 model.get_tick_error_probability(0),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_with_both_params"
-                ](4, 4),
+                simple_circuit_test["global_time_error_probability_with_both_params"](
+                    4, 4
+                ),
             )
             self.assertEqual(
                 model.get_tick_error_probability(1),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_with_both_params"
-                ](6, 2),
+                simple_circuit_test["global_time_error_probability_with_both_params"](
+                    6, 2
+                ),
             )
         with self.subTest(
             "X Error Model, Idle End of Tick, Time Dependent, with tick time param"
         ):
             model = CircuitErrorModel(
-                circuit=self.simpleCircuitTest["circuit"],
+                circuit=simple_circuit_test["circuit"],
                 is_time_dependent=True,
-                global_time_error_probability=self.simpleCircuitTest[
+                global_time_error_probability=simple_circuit_test[
                     "global_time_error_probability_with_both_params"
                 ],
-                gate_durations=self.simpleCircuitTest["gate_durations"],
+                gate_durations=simple_circuit_test["gate_durations"],
                 error_type=ErrorType.PAULI_X,
                 application_mode=ApplicationMode.IDLE_END_OF_TICK,
             )
 
             self.assertEqual(
                 model.get_idle_tick_error_probability(
-                    0, self.simpleCircuitTest["channels"][0].id
+                    0, simple_circuit_test["channels"][0].id
                 ),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_with_both_params"
-                ](4, 2),
+                simple_circuit_test["global_time_error_probability_with_both_params"](
+                    4, 2
+                ),
             )
             self.assertEqual(
                 model.get_idle_tick_error_probability(
-                    1, self.simpleCircuitTest["channels"][1].id
+                    1, simple_circuit_test["channels"][1].id
                 ),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_with_both_params"
-                ](6, 2),
+                simple_circuit_test["global_time_error_probability_with_both_params"](
+                    6, 2
+                ),
             )
             self.assertEqual(
                 model.get_idle_tick_error_probability(
-                    1, self.simpleCircuitTest["channels"][0].id
+                    1, simple_circuit_test["channels"][0].id
                 ),
-                self.simpleCircuitTest[
-                    "global_time_error_probability_with_both_params"
-                ](6, 0),
+                simple_circuit_test["global_time_error_probability_with_both_params"](
+                    6, 0
+                ),
             )
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -9,11 +9,14 @@ Ltd.
 
 from pydantic.dataclasses import dataclass
 from pydantic import Field
+
 from loom.eka.circuit import Circuit, Channel, ChannelType
 from loom.eka.block import Block
 from loom.eka.pauli_operator import PauliOperator
 from loom.eka.stabilizer import Stabilizer
 from loom.eka.utilities import SyndromeMissingError
+from loom.eka.operations import LogicalMeasurement
+
 from .syndrome import Syndrome
 from .detector import Detector
 from .logical_observable import LogicalObservable
@@ -29,7 +32,8 @@ def check_frozen(func):
         result = func(self, *args, **kwargs)
         if self.is_frozen:
             raise ValueError(
-                "Cannot change properties of the final InterpretationStep after the interpretation is finished."
+                "Cannot change properties of the final InterpretationStep after the "
+                "interpretation is finished."
             )
         return result
 
@@ -37,7 +41,7 @@ def check_frozen(func):
 
 
 @dataclass
-class InterpretationStep:
+class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     """
     The `InterpretationStep` class stores all relevant information which was
     generated during interpretation up to the `Operation` which is currently
@@ -130,6 +134,12 @@ class InterpretationStep:
         A dictionary storing how many measurements have been performed and stored in
         each classical register. The keys are the labels of the classical registers
         which are used as the first element in `Cbit`.
+    block_decoding_starting_round : dict[str, int]
+        A dictionary storing for every block the round from which the decoding of this
+        block should start the next time real-time decoding is performed. E.g. if we
+        encounter a non-Clifford gate on a block at time t, we need to decode until this
+        time t. Then in this dictionary, we store that the next decoding round has to
+        include detectors up to time t+1.
     logical_x_operator_updates : dict[str, tuple[Cbit, ...]]
         A dictionary storing for every logical X operator, the measurements (in the form
         of Cbits) which need to be taken into account for updating the Pauli frame of
@@ -156,8 +166,8 @@ class InterpretationStep:
         the data qubits of the respective stabilizer are measured (in other words when
         the weight of the stabilizer is reduced), e.g. in a shrink or split operation.
         The keys of the dictionary are uuids of stabilizers.
-        E.g. for a shrink that changes a weight 4 stabilizer to a weight 2 stabilizer we match
-        `new_stab.uuid` to `(cbit1, cbit2)`.
+        E.g. for a shrink that changes a weight 4 stabilizer to a weight 2 stabilizer
+        we match `new_stab.uuid` to `(cbit1, cbit2)`.
         CAUTION:
         Some applicators may pop the entries from the stabilizer_updates field of the
         interpretation step to compute corrections. This may cause issues in the future
@@ -208,6 +218,9 @@ class InterpretationStep:
         default_factory=dict, validate_default=True
     )
     cbit_counter: dict[str, int] = Field(default_factory=dict, validate_default=True)
+    block_decoding_starting_round: dict[str, int] = Field(
+        default_factory=dict, validate_default=True
+    )
     logical_x_operator_updates: dict[str, tuple[Cbit, ...]] = Field(
         default_factory=dict, validate_default=True
     )
@@ -218,6 +231,9 @@ class InterpretationStep:
         default_factory=dict, validate_default=True
     )
     channel_dict: dict[str, Channel] = Field(
+        default_factory=dict, validate_default=True
+    )
+    logical_measurements: dict[LogicalMeasurement, tuple[Cbit, ...]] = Field(
         default_factory=dict, validate_default=True
     )
     is_frozen: bool = False
@@ -244,11 +260,11 @@ class InterpretationStep:
         )
 
     @check_frozen
-    def update_block_history_and_evolution_MUT(
+    def update_block_history_and_evolution_MUT(  # pylint: disable=invalid-name
         self,
         new_blocks: tuple[Block, ...] = tuple(),
         old_blocks: tuple[Block, ...] = tuple(),
-        update_evolution: bool = True,
+        update_evolution: bool = True,  # pylint: disable=unused-argument
     ) -> None:
         """
         Update the block history and the block evolution with the new blocks and
@@ -272,38 +288,43 @@ class InterpretationStep:
             Flag that enables the addition of the new and old blocks to the block
             evolution.
         """
-        current_block_ids = tuple((block.uuid for block in self.block_history[-1]))
+        current_block_ids = tuple(block.uuid for block in self.block_history[-1])
+        # Test for existence of old blocks
         for old_block in old_blocks:
             if old_block.uuid not in current_block_ids:
                 raise ValueError(
-                    f"Block '{old_block.unique_label}' is not in the current block configuration."
+                    f"Block '{old_block.unique_label}' is not in the current block "
+                    "configuration."
                 )
+        # Test for non-existence of new blocks
         for new_block in new_blocks:
             if new_block.uuid in current_block_ids:
                 raise ValueError(
-                    f"Block '{new_block.unique_label}' is already in the current block configuration."
+                    f"Block '{new_block.unique_label}' is already in the current block "
+                    "configuration."
                 )
+
+        # Update block evolution
         if old_blocks and new_blocks:
             self.block_evolution.update(
                 {
-                    new_block.uuid: tuple((block.uuid for block in old_blocks))
+                    new_block.uuid: tuple(block.uuid for block in old_blocks)
                     for new_block in new_blocks
                 }
             )
-        new_blocks_state = (
+
+        new_state_of_blocks = (
             tuple(
-                (
-                    block
-                    for block in self.block_history[-1]
-                    if block.uuid not in (old_block.uuid for old_block in old_blocks)
-                )
+                block
+                for block in self.block_history[-1]
+                if block.uuid not in (old_block.uuid for old_block in old_blocks)
             )
             + new_blocks
         )
-        self.block_history += (new_blocks_state,)
+        self.block_history += (new_state_of_blocks,)
 
     @check_frozen
-    def update_logical_operator_updates_MUT(
+    def update_logical_operator_updates_MUT(  # pylint: disable=invalid-name
         self,
         operator_type: str,
         logical_operator_id: str,
@@ -330,6 +351,8 @@ class InterpretationStep:
             If True, the updates from the previous logical operators are also included
             in the new updates. If False, only the new updates are added.
         """
+
+        # Separate cases for X and Z operators because they are located in different dictionaries
         if operator_type == "X":
             logical_evolution = self.logical_x_evolution
             logical_updates = self.logical_x_operator_updates
@@ -338,23 +361,29 @@ class InterpretationStep:
             logical_updates = self.logical_z_operator_updates
         else:
             raise ValueError("Operator type must be labelled either 'X' or 'Z'.")
+
+        # If inherit_updates is True, add the old updates to the new updates
+        # Retrieve the previous logical updates
         if inherit_updates:
             old_logical_ids = logical_evolution.get(logical_operator_id, ())
             old_logical_updates = tuple(
-                (
-                    cbit
-                    for logical_id in old_logical_ids
-                    for cbit in logical_updates.get(logical_id, ())
-                )
+                cbit
+                for logical_id in old_logical_ids
+                for cbit in logical_updates.get(logical_id, ())
             )
+            # Add the old updates to the new updates
             new_updates += old_logical_updates
+
+        # Add the updates only if there are new updates
         if new_updates:
+            # If the new logical has no updates yet, create an empty tuple
             if logical_operator_id not in logical_updates.keys():
                 logical_updates[logical_operator_id] = ()
+            # Add the new updates to the logical operator update
             logical_updates[logical_operator_id] += new_updates
 
     @check_frozen
-    def get_channel_MUT(
+    def get_channel_MUT(  # pylint: disable=invalid-name
         self, label: str, channel_type: ChannelType = ChannelType.QUANTUM
     ) -> Channel:
         """
@@ -382,13 +411,18 @@ class InterpretationStep:
         Channel
             Corresponding channel
         """
+        # Convert label (either coordinate tuple or Cbit) to string
         label = str(label)
+        # Create Channel if it does not exist yet
         if label not in self.channel_dict.keys():
-            self.channel_dict[label] = Channel(type=channel_type, label=label)
+            self.channel_dict[label] = Channel(
+                type=channel_type,
+                label=label,
+            )
         return self.channel_dict[label]
 
     @check_frozen
-    def append_circuit_MUT(
+    def append_circuit_MUT(  # pylint: disable=invalid-name
         self, circuit: Circuit, same_timeslice: bool = False
     ) -> None:
         """
@@ -401,33 +435,40 @@ class InterpretationStep:
         ----------
         circuit : Circuit
             The circuit to be appended to the current circuit of the InterpretationStep.
-             It can only be a single circuit in recursive form.
+            It can only be a single circuit in recursive form.
         same_timeslice : bool
             If True, the circuit is appended to the last timeslice of
             intermediate_circuit_sequence. If False, a new timeslice is created.
         """
         if not isinstance(circuit, Circuit):
             raise TypeError(
-                f"Type {type(circuit)} not supported for circuit field. The circuit must be a Circuit object"
+                f"Type {type(circuit)} not supported for circuit field. The circuit"
+                f" must be a Circuit object"
             )
+        # Append the new circuit to intermediate_circuit_sequence
         if same_timeslice and len(self.intermediate_circuit_sequence) > 0:
             existing_channels = [
                 chan
                 for circuit in self.intermediate_circuit_sequence[-1]
                 for chan in circuit.channels
             ]
-            if any((channel in existing_channels for channel in circuit.channels)):
+            if any(channel in existing_channels for channel in circuit.channels):
                 raise ValueError(
-                    "The channels of the new circuit are already in use in the current timeslice. Please use a new timeslice."
+                    "The channels of the new circuit are already in use in the current "
+                    "timeslice. Please use a new timeslice."
                 )
+
+            # Add the circuit to the last timeslice
             self.intermediate_circuit_sequence = self.intermediate_circuit_sequence[
                 :-1
             ] + (self.intermediate_circuit_sequence[-1] + (circuit,),)
         else:
-            self.intermediate_circuit_sequence += ((circuit,),)
+            self.intermediate_circuit_sequence += (
+                (circuit,),
+            )  # Add the circuit as a single timeslice
 
     @check_frozen
-    def pop_intermediate_circuit_MUT(
+    def pop_intermediate_circuit_MUT(  # pylint: disable=invalid-name
         self, length: int
     ) -> tuple[tuple[Circuit, ...], ...]:
         """
@@ -446,7 +487,8 @@ class InterpretationStep:
         """
         if length > len(self.intermediate_circuit_sequence):
             raise ValueError(
-                "The number of timeslices to pop exceeds the number of timeslices in the intermediate circuit sequence."
+                "The number of timeslices to pop exceeds the number of timeslices in "
+                "the intermediate circuit sequence."
             )
         if length == 0:
             raise ValueError("The number of timeslices to pop must be greater than 0.")
@@ -454,10 +496,13 @@ class InterpretationStep:
         self.intermediate_circuit_sequence = self.intermediate_circuit_sequence[
             :-length
         ]
+
         return popped_circuits
 
     @check_frozen
-    def get_new_cbit_MUT(self, register_name: str) -> Cbit:
+    def get_new_cbit_MUT(  # pylint: disable=invalid-name
+        self, register_name: str
+    ) -> Cbit:
         """
         Create a new Cbit for the given register name, considering how often that
         register has been used for measurements before. Increase the respective counter.
@@ -475,14 +520,19 @@ class InterpretationStep:
         Cbit
             Cbit for the new measurement
         """
+        # If the register does not exist yet in the counter, create it
         if register_name not in self.cbit_counter.keys():
             self.cbit_counter[register_name] = 0
+
+        # Create the new Cbit, increase the counter and return the Cbit
         cbit = (register_name, self.cbit_counter[register_name])
         self.cbit_counter[register_name] += 1
         return cbit
 
     @check_frozen
-    def append_syndromes_MUT(self, syndromes: Syndrome | tuple[Syndrome, ...]) -> None:
+    def append_syndromes_MUT(  # pylint: disable=invalid-name
+        self, syndromes: Syndrome | tuple[Syndrome, ...]
+    ) -> None:
         """
         Append a new syndrome to the list of syndromes.
 
@@ -495,7 +545,7 @@ class InterpretationStep:
             New syndrome(s) to be appended
         """
         if isinstance(syndromes, tuple):
-            if any((not isinstance(s, Syndrome) for s in syndromes)):
+            if any(not isinstance(s, Syndrome) for s in syndromes):
                 raise TypeError("All elements in the tuple must be Syndrome objects.")
             self.syndromes += syndromes
         elif isinstance(syndromes, Syndrome):
@@ -506,7 +556,9 @@ class InterpretationStep:
             )
 
     @check_frozen
-    def append_detectors_MUT(self, detectors: Detector | tuple[Detector]) -> None:
+    def append_detectors_MUT(  # pylint: disable=invalid-name
+        self, detectors: Detector | tuple[Detector]
+    ) -> None:
         """
         Append new detector(s) to the list of detectors.
 
@@ -519,7 +571,7 @@ class InterpretationStep:
             New detector(s) to be appended
         """
         if isinstance(detectors, tuple):
-            if any((not isinstance(d, Detector) for d in detectors)):
+            if any(not isinstance(d, Detector) for d in detectors):
                 raise TypeError(
                     "Some elements in the input tuple are not of type Detector"
                 )
@@ -577,11 +629,19 @@ class InterpretationStep:
             The latest syndrome for the given stabilizer_id, block_id and current_round.
             Returns an empty list if no Syndrome is found.
         """
+
+        # - Whenever syndromes_id is populated, we exit the all while loops.
+        # - We start with the current stabilizer and look for syndromes by traversing
+        #   the block history backwards, i.e. we look for syndromes in the current
+        #   block and then in the blocks it evolved from - and so on.
+        # - If the above fails, we find the stabilizers that the current stabilizer
+        #   evolved from and repeat the process until we find syndromes or we fully
+        #   traverse the block and stabilizer history of block_id and stabilizer_id.
         syndromes_id = []
         current_stabilizers_id = [stabilizer_id]
-        while current_stabilizers_id and (not syndromes_id):
+        while current_stabilizers_id and not syndromes_id:
             current_blocks_id = [block_id]
-            while current_blocks_id and (not syndromes_id):
+            while current_blocks_id and not syndromes_id:
                 syndromes_id = [
                     syndrome
                     for prev_block_id in current_blocks_id
@@ -598,13 +658,20 @@ class InterpretationStep:
                 for stab_id in current_stabilizers_id
                 for prev_stab_id in self.stabilizer_evolution.get(stab_id, [])
             ]
+
+        # If current_round is given, filter the syndromes to only include those
+        # that were measured before the current round.
         if current_round is not None:
             syndromes_id = [
                 syndrome for syndrome in syndromes_id if syndrome.round < current_round
             ]
+
+        # If no syndromes were found to match the criteria, return an empty list.
         if not syndromes_id:
             return []
-        max_round = max((syndrome.round for syndrome in syndromes_id))
+        # Return the most recent syndromes, i.e. those with the highest round
+        # number.
+        max_round = max(syndrome.round for syndrome in syndromes_id)
         most_recent_syndromes = [
             syndrome for syndrome in syndromes_id if syndrome.round == max_round
         ]
@@ -642,13 +709,17 @@ class InterpretationStep:
         ]
         if any(stabilizers_without_syndrome):
             raise SyndromeMissingError(
-                f"Could not find a syndrome for some stabilizers. Stabilizers without syndrome: {stabilizers_without_syndrome}"
+                "Could not find a syndrome for some stabilizers. "
+                f"Stabilizers without syndrome: {stabilizers_without_syndrome}"
             )
+        # Because the syndromes are given as a list of a single syndrome, we extract
+        # the syndrome from the list
         last_syndrome_per_stab = tuple(
-            (synd_list[0] for synd_list in last_syndrome_per_stab)
+            synd_list[0] for synd_list in last_syndrome_per_stab
         )
+
         return tuple(
-            (cbit for synd in last_syndrome_per_stab for cbit in synd.measurements)
+            cbit for synd in last_syndrome_per_stab for cbit in synd.measurements
         )
 
     @property
@@ -656,6 +727,7 @@ class InterpretationStep:
         """
         Return a dictionary of stabilizers with stabilizer uuid as keys.
         """
+        # flatten the block history tuple of tuples
         return {
             stabilizer.uuid: stabilizer
             for block_tuple in self.block_history

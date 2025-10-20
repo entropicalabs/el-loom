@@ -10,7 +10,7 @@ To install Loom, first clone the Loom repository from GitHub:
 
 .. code-block:: bash
 
-   git clone https://github.com/entropicalabs/loom-for-uq.git
+   git clone https://github.com/entropicalabs/loom-for-<your_repo_here>.git
 
 Loom uses Poetry for dependency management and packaging. Poetry's full installation 
 instructions can be found from their official documentation at 
@@ -37,6 +37,7 @@ configuration:
 
 Next, install Loom using Poetry:
 
+
 .. code-block:: bash
 
    poetry install
@@ -59,6 +60,14 @@ environment.
       poetry install --with dev        # For development
       poetry install --with docs       # For documentation
       poetry install --with notebooks  # For Jupyter Notebooks
+
+
+After installing, you can activate the virtual environment with the following command:
+
+.. code-block:: bash
+
+   eval $(poetry env activate)
+
 
 Finally, verify the installation with Pytest.
 

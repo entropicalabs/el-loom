@@ -26,7 +26,7 @@ from .pauli_computation import g_npfunc
 
 class PauliOp(ABC):
     """
-    Abstract PauliOp class, parent of SignedPauliOp.
+    Abstract PauliOp class, parent of SignedPauliOp and UnsignedPauliOp.
 
     Parameters
     ---------
@@ -534,3 +534,79 @@ def pauliops_anti_commute(op1: PauliOp, op2: PauliOp) -> int:
     anti_comm_array = anti_commutes_npfunc(op1.x, op1.z, op2.x, op2.z)
 
     return np.sum(anti_comm_array) % 2
+
+
+class UnsignedPauliOp(PauliOp):
+    """A class describing an UnsignedPauliOp, a Pauli operator without a sign."""
+
+    def __init__(self, array: np.ndarray | Sequence, validated: bool = False) -> None:
+        """Initialization of the UnsignedPauliOp via a numpy array.
+
+        Parameters
+        ----------
+        array : np.ndarray | Sequence
+            The array representation of the UnsignedPauliOp
+        """
+        if not validated:
+            if not isinstance(array, (np.ndarray, Sequence)):
+                raise TypeError("Input argument should be a NumPy array or a sequence.")
+
+            if not isinstance(array, np.ndarray):
+                # make it into an array
+                array = np.array(array)
+
+            if array.ndim != 1:
+                raise ValueError("NumPy array should be 1-D.")
+
+            if not len(array) % 2 == 0:
+                raise ValueError("Numpy array has to have an even number of bits")
+
+            # check if all elements are 0 or 1
+            if not np.all(array * (array - 1) == 0):
+                raise ValueError("The input array has to consist of 0 and 1.")
+
+            if not array.dtype == self.DTYPE:
+                # cast it into the correct data type
+                array = array.astype(self.DTYPE)
+
+        self.array = array
+
+    @classmethod
+    def from_string(cls, pauli_str: str) -> UnsignedPauliOp:
+        """Create an UnsignedPauliOp from a Pauli string, like "IXZZY"
+
+        Parameters
+        ----------
+        pauli_str : str
+            The Pauli string to create the UnsignedPauliOp from.
+
+        Returns
+        -------
+        UnsignedPauliOp
+            The UnsignedPauliOp created from the Pauli string.
+        """
+        if pauli_str[0] in ["+", "-"]:
+            raise ValueError(
+                "The first character of the a UnsignedPauliOp cannot be '+' or '-'. "
+                "Maybe you want to use SignedPauliOp class instead."
+            )
+        pauli_chars = pauli_str
+        nqubits = len(pauli_chars)
+        array = np.zeros(2 * nqubits, dtype=cls.DTYPE)
+
+        # set the array values from
+        x, z = paulichar_to_xz_npfunc(np.array(list(pauli_chars)))
+        array[0:nqubits] = x
+        array[nqubits : 2 * nqubits] = z
+
+        return cls(array, validated=True)
+
+    def __str__(self) -> str:
+        """The string representation of the UnSignedPauliOp"""
+        return "".join(paulixz_to_char_npfunc(self.x, self.z))
+
+    def copy(self) -> UnsignedPauliOp:
+        """
+        Returns a deep copy of the UnsignedPauliOp object.
+        """
+        return deepcopy(self)

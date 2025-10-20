@@ -35,6 +35,7 @@ from loom.eka import (
 )
 from loom.eka.operations.code_operation import MeasureBlockSyndromes
 
+# pylint: disable=duplicate-code
 gate_set = {
     "x",
     "y",
@@ -64,7 +65,7 @@ gate_set = {
 }
 
 
-# pylint: disable=too-many-instance-attributes
+# pylint: disable=too-many-instance-attributes, duplicate-code, no-member, too-many-lines, eval-used
 class TestEkaCircuitToStimConverter(unittest.TestCase):
     """
     Test the conversion functionality of the class,
@@ -413,7 +414,6 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         self.converter = EkaCircuitToStimConverter()
 
     def test_converter_mappings(self):
-        # pylint: disable=no-member
         """
         Tests whether the correct mapping is generated between:
         1) The block qubits and the stim qubits for the conversion
@@ -437,15 +437,15 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         # verify converter.blocks_to_stim_qubits_mapper
         self.assertEqual(expected_block_stim_dict, eka_stim_dict)
 
-        eka_qubit_channels = [
+        crd_qubit_channels = [
             channel
             for channel in self.interpreted_eka_rsc.final_circuit.channels
             if channel.is_quantum()
         ]
-        eka_channels = sorted(
+        crd_channels = sorted(
             [
                 channel
-                for channel in eka_qubit_channels
+                for channel in crd_qubit_channels
                 if eval(channel.label) in self.block_qubits_ordered_rsc
             ],
             key=lambda x: (
@@ -454,7 +454,7 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
             ),
         )
         expected_channel_stim_dict = dict(
-            zip(eka_channels, stim_qubit_instructions, strict=True)
+            zip(crd_channels, stim_qubit_instructions, strict=True)
         )
         channel_stim_dict = self.converter.eka_channel_to_stim_qubit_instruction_mapper(
             self.interpreted_eka_rsc.final_circuit, eka_stim_dict
@@ -561,22 +561,22 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
             CX 5 3 11 8 16 15
             H 4 12 5 11 0 16 10 6
             M 4 12 5 11 0 16 10 6
-            DETECTOR rec[-24] rec[-16]
-            DETECTOR rec[-23] rec[-15]
-            DETECTOR rec[-22] rec[-14]
-            DETECTOR rec[-21] rec[-13]
-            DETECTOR rec[-20] rec[-12]
-            DETECTOR rec[-19] rec[-11]
-            DETECTOR rec[-18] rec[-10]
-            DETECTOR rec[-17] rec[-9]
-            DETECTOR rec[-16] rec[-8]
-            DETECTOR rec[-15] rec[-7]
-            DETECTOR rec[-14] rec[-6]
-            DETECTOR rec[-13] rec[-5]
-            DETECTOR rec[-12] rec[-4]
-            DETECTOR rec[-11] rec[-3]
-            DETECTOR rec[-10] rec[-2]
-            DETECTOR rec[-9] rec[-1]
+            DETECTOR(1, 1, 0) rec[-24] rec[-16]
+            DETECTOR(2, 2, 0) rec[-23] rec[-15]
+            DETECTOR(1, 2, 0) rec[-22] rec[-14]
+            DETECTOR(2, 1, 0) rec[-21] rec[-13]
+            DETECTOR(0, 1, 0) rec[-20] rec[-12]
+            DETECTOR(3, 2, 0) rec[-19] rec[-11]
+            DETECTOR(2, 0, 0) rec[-18] rec[-10]
+            DETECTOR(1, 3, 0) rec[-17] rec[-9]
+            DETECTOR(1, 1, 0) rec[-16] rec[-8]
+            DETECTOR(2, 2, 0) rec[-15] rec[-7]
+            DETECTOR(1, 2, 0) rec[-14] rec[-6]
+            DETECTOR(2, 1, 0) rec[-13] rec[-5]
+            DETECTOR(0, 1, 0) rec[-12] rec[-4]
+            DETECTOR(3, 2, 0) rec[-11] rec[-3]
+            DETECTOR(2, 0, 0) rec[-10] rec[-2]
+            DETECTOR(1, 3, 0) rec[-9] rec[-1]
         """
         )
         converted_stim_circuit = self.converter.convert(self.interpreted_eka_rsc)
@@ -714,7 +714,7 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
             H 4 12 5 11 0 16 10 6
             DEPOLARIZE1({p}) 4 12 5 11 0 16 10 6
             CZ 4 7 12 14
-            DEPOLARIZE2({p}) 4 7 12 14 
+            DEPOLARIZE2({p}) 4 7 12 14
             CX 5 8 11 13 0 1
             DEPOLARIZE2({p}) 5 8 11 13 0 1
             CZ 6 9 4 8 12 15
@@ -864,6 +864,9 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
 
         # Define error models for depolarization after 1 qubits Clifford gates
         class After1CliffordDepolarization(CircuitErrorModel):
+            """A simple error model that applies depolarizing noise after single qubit
+            Clifford gates."""
+
             probability: float
 
             is_time_dependent: bool = False
@@ -945,22 +948,22 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
                 H 4 12 5 11 0 16 10 6
                 DEPOLARIZE1(0.01) 4 12 5 11 0 16 10 6
                 M 4 12 5 11 0 16 10 6
-                DETECTOR rec[-24] rec[-16]
-                DETECTOR rec[-23] rec[-15]
-                DETECTOR rec[-22] rec[-14]
-                DETECTOR rec[-21] rec[-13]
-                DETECTOR rec[-20] rec[-12]
-                DETECTOR rec[-19] rec[-11]
-                DETECTOR rec[-18] rec[-10]
-                DETECTOR rec[-17] rec[-9]
-                DETECTOR rec[-16] rec[-8]
-                DETECTOR rec[-15] rec[-7]
-                DETECTOR rec[-14] rec[-6]
-                DETECTOR rec[-13] rec[-5]
-                DETECTOR rec[-12] rec[-4]
-                DETECTOR rec[-11] rec[-3]
-                DETECTOR rec[-10] rec[-2]
-                DETECTOR rec[-9] rec[-1]
+                DETECTOR(1, 1, 0) rec[-24] rec[-16]
+                DETECTOR(2, 2, 0) rec[-23] rec[-15]
+                DETECTOR(1, 2, 0) rec[-22] rec[-14]
+                DETECTOR(2, 1, 0) rec[-21] rec[-13]
+                DETECTOR(0, 1, 0) rec[-20] rec[-12]
+                DETECTOR(3, 2, 0) rec[-19] rec[-11]
+                DETECTOR(2, 0, 0) rec[-18] rec[-10]
+                DETECTOR(1, 3, 0) rec[-17] rec[-9]
+                DETECTOR(1, 1, 0) rec[-16] rec[-8]
+                DETECTOR(2, 2, 0) rec[-15] rec[-7]
+                DETECTOR(1, 2, 0) rec[-14] rec[-6]
+                DETECTOR(2, 1, 0) rec[-13] rec[-5]
+                DETECTOR(0, 1, 0) rec[-12] rec[-4]
+                DETECTOR(3, 2, 0) rec[-11] rec[-3]
+                DETECTOR(2, 0, 0) rec[-10] rec[-2]
+                DETECTOR(1, 3, 0) rec[-9] rec[-1]
             """
         )
 
@@ -977,8 +980,11 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         self.assert_without_detector_order(expected_output_str, converted_stim_circuit)
 
     def test_conversion_with_depolarize2_time_dependent_error(self):
+        """test the conversion of a circuit with error models"""
+
         class After2CliffordDepolarization(CircuitErrorModel):
-            """Define a time-dependent error model for depolarization after 2 qubits Clifford gates"""
+            """Define a time-dependent error model for depolarization after
+            2 qubits Clifford gates"""
 
             probability_scale_over_time: float
 
@@ -1067,28 +1073,28 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
                 DEPOLARIZE2(0.22) 4 2 12 9 5 3 11 8 16 15 10 7
                 H 4 12 5 11 0 16 10 6
                 M 4 12 5 11 0 16 10 6
-                DETECTOR rec[-24] rec[-16]
-                DETECTOR rec[-23] rec[-15]
-                DETECTOR rec[-22] rec[-14]
-                DETECTOR rec[-21] rec[-13]
-                DETECTOR rec[-20] rec[-12]
-                DETECTOR rec[-19] rec[-11]
-                DETECTOR rec[-18] rec[-10]
-                DETECTOR rec[-17] rec[-9]
-                DETECTOR rec[-16] rec[-8]
-                DETECTOR rec[-15] rec[-7]
-                DETECTOR rec[-14] rec[-6]
-                DETECTOR rec[-13] rec[-5]
-                DETECTOR rec[-12] rec[-4]
-                DETECTOR rec[-11] rec[-3]
-                DETECTOR rec[-10] rec[-2]
-                DETECTOR rec[-9] rec[-1]
+                DETECTOR(1, 1, 0) rec[-24] rec[-16]
+                DETECTOR(2, 2, 0) rec[-23] rec[-15]
+                DETECTOR(1, 2, 0) rec[-22] rec[-14]
+                DETECTOR(2, 1, 0) rec[-21] rec[-13]
+                DETECTOR(0, 1, 0) rec[-20] rec[-12]
+                DETECTOR(3, 2, 0) rec[-19] rec[-11]
+                DETECTOR(2, 0, 0) rec[-18] rec[-10]
+                DETECTOR(1, 3, 0) rec[-17] rec[-9]
+                DETECTOR(1, 1, 0) rec[-16] rec[-8]
+                DETECTOR(2, 2, 0) rec[-15] rec[-7]
+                DETECTOR(1, 2, 0) rec[-14] rec[-6]
+                DETECTOR(2, 1, 0) rec[-13] rec[-5]
+                DETECTOR(0, 1, 0) rec[-12] rec[-4]
+                DETECTOR(3, 2, 0) rec[-11] rec[-3]
+                DETECTOR(2, 0, 0) rec[-10] rec[-2]
+                DETECTOR(1, 3, 0) rec[-9] rec[-1]
             """
         )
 
         circ = self.interpreted_eka_rsc.final_circuit
-        gate_set = {g.name for layer in Circuit.unroll(circ) for g in layer}
-        gate_duration = {gate: 1 for gate in gate_set}
+        g_set = {g.name for layer in Circuit.unroll(circ) for g in layer}
+        gate_duration = {gate: 1 for gate in g_set}
 
         error_model = [
             After2CliffordDepolarization(
@@ -1105,12 +1111,15 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         self.assert_without_detector_order(expected_output_str, converted_stim_circuit)
 
     def test_conversion_with_multiple_error_models(self):
-        circ = self.interpreted_eka_rsc.final_circuit
-        gate_set = {g.name for layer in Circuit.unroll(circ) for g in layer}
-        gate_duration = {gate: 1 for gate in gate_set}
+        """Test the correction creation of a Stim Circuit with multiple error models"""
+
+        # Test creation for Rotated Surface Code
+        circ_rsc = self.interpreted_eka_rsc.final_circuit
+        g_set = {g.name for layer in Circuit.unroll(circ_rsc) for g in layer}
+        gate_duration = {gate: 1 for gate in g_set}
 
         m1 = HomogeneousTimeDependentCEM(
-            circuit=circ,
+            circuit=circ_rsc,
             error_type=ErrorType.PAULI_X,
             gate_durations=gate_duration,
             application_mode=ApplicationMode.END_OF_TICK,
@@ -1118,7 +1127,7 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         )
 
         m2 = HomogeneousTimeIndependentCEM(
-            circuit=circ,
+            circuit=circ_rsc,
             error_type=ErrorType.PAULI_Y,
             gate_durations=gate_duration,
             application_mode=ApplicationMode.AFTER_GATE,
@@ -1127,150 +1136,150 @@ class TestEkaCircuitToStimConverter(unittest.TestCase):
         )
 
         m3 = AsymmetricDepolarizeCEM(
-            circuit=circ,
+            circuit=circ_rsc,
             gate_durations=gate_duration,
             t1=1,
             t2=1.5,
         )
 
         expected_output_str = stim.Circuit(
-            f"""QUBIT_COORDS(0, 1) 0
-                QUBIT_COORDS(0.5, 0.5) 1
-                QUBIT_COORDS(0.5, 1.5) 2
-                QUBIT_COORDS(0.5, 2.5) 3
-                QUBIT_COORDS(1, 1) 4
-                QUBIT_COORDS(1, 2) 5
-                QUBIT_COORDS(1, 3) 6
-                QUBIT_COORDS(1.5, 0.5) 7
-                QUBIT_COORDS(1.5, 1.5) 8
-                QUBIT_COORDS(1.5, 2.5) 9
-                QUBIT_COORDS(2, 0) 10
-                QUBIT_COORDS(2, 1) 11
-                QUBIT_COORDS(2, 2) 12
-                QUBIT_COORDS(2.5, 0.5) 13
-                QUBIT_COORDS(2.5, 1.5) 14
-                QUBIT_COORDS(2.5, 2.5) 15
-                QUBIT_COORDS(3, 2) 16
-                R 4 12 5 11 0 16 10 6
-                X_ERROR(0.01) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.02) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 7 12 14 6 9
-                CX 5 8 11 13 0 1
-                Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
-                X_ERROR(0.03) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 1 12 8 6 3
-                CX 5 9 11 14 0 2
-                Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
-                X_ERROR(0.04) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 8 12 15 10 13
-                CX 5 2 11 7 16 14
-                Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
-                X_ERROR(0.05) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 2 12 9 10 7
-                CX 5 3 11 8 16 15
-                Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
-                X_ERROR(0.06) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.07) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                M 4 12 5 11 0 16 10 6
-                X_ERROR(0.08) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                R 4 12 5 11 0 16 10 6
-                X_ERROR(0.09) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.1) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 7 12 14 6 9
-                CX 5 8 11 13 0 1
-                Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
-                X_ERROR(0.11) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 1 12 8 6 3
-                CX 5 9 11 14 0 2
-                Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
-                X_ERROR(0.12) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 8 12 15 10 13
-                CX 5 2 11 7 16 14
-                Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
-                X_ERROR(0.13) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 2 12 9 10 7
-                CX 5 3 11 8 16 15
-                Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
-                X_ERROR(0.14) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.15) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                M 4 12 5 11 0 16 10 6
-                X_ERROR(0.16) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                R 4 12 5 11 0 16 10 6
-                X_ERROR(0.17) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.18) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 7 12 14 6 9
-                CX 5 8 11 13 0 1
-                Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
-                X_ERROR(0.19) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 1 12 8 6 3
-                CX 5 9 11 14 0 2
-                Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
-                X_ERROR(0.2) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 8 12 15 10 13
-                CX 5 2 11 7 16 14
-                Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
-                X_ERROR(0.21) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                CZ 4 2 12 9 10 7
-                CX 5 3 11 8 16 15
-                Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
-                X_ERROR(0.22) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                H 4 12 5 11 0 16 10 6
-                X_ERROR(0.23) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                M 4 12 5 11 0 16 10 6
-                X_ERROR(0.24) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
-                DETECTOR rec[-24] rec[-16]
-                DETECTOR rec[-23] rec[-15]
-                DETECTOR rec[-22] rec[-14]
-                DETECTOR rec[-21] rec[-13]
-                DETECTOR rec[-20] rec[-12]
-                DETECTOR rec[-19] rec[-11]
-                DETECTOR rec[-18] rec[-10]
-                DETECTOR rec[-17] rec[-9]
-                DETECTOR rec[-16] rec[-8]
-                DETECTOR rec[-15] rec[-7]
-                DETECTOR rec[-14] rec[-6]
-                DETECTOR rec[-13] rec[-5]
-                DETECTOR rec[-12] rec[-4]
-                DETECTOR rec[-11] rec[-3]
-                DETECTOR rec[-10] rec[-2]
-                DETECTOR rec[-9] rec[-1]"""
+            """
+            QUBIT_COORDS(0, 1) 0
+            QUBIT_COORDS(0.5, 0.5) 1
+            QUBIT_COORDS(0.5, 1.5) 2
+            QUBIT_COORDS(0.5, 2.5) 3
+            QUBIT_COORDS(1, 1) 4
+            QUBIT_COORDS(1, 2) 5
+            QUBIT_COORDS(1, 3) 6
+            QUBIT_COORDS(1.5, 0.5) 7
+            QUBIT_COORDS(1.5, 1.5) 8
+            QUBIT_COORDS(1.5, 2.5) 9
+            QUBIT_COORDS(2, 0) 10
+            QUBIT_COORDS(2, 1) 11
+            QUBIT_COORDS(2, 2) 12
+            QUBIT_COORDS(2.5, 0.5) 13
+            QUBIT_COORDS(2.5, 1.5) 14
+            QUBIT_COORDS(2.5, 2.5) 15
+            QUBIT_COORDS(3, 2) 16
+            R 4 12 5 11 0 16 10 6
+            X_ERROR(0.01) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.02) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 7 12 14 6 9
+            CX 5 8 11 13 0 1
+            Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
+            X_ERROR(0.03) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 1 12 8 6 3
+            CX 5 9 11 14 0 2
+            Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
+            X_ERROR(0.04) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 8 12 15 10 13
+            CX 5 2 11 7 16 14
+            Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
+            X_ERROR(0.05) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 2 12 9 10 7
+            CX 5 3 11 8 16 15
+            Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
+            X_ERROR(0.06) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.07) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            M 4 12 5 11 0 16 10 6
+            X_ERROR(0.08) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            R 4 12 5 11 0 16 10 6
+            X_ERROR(0.09) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.1) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 7 12 14 6 9
+            CX 5 8 11 13 0 1
+            Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
+            X_ERROR(0.11) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 1 12 8 6 3
+            CX 5 9 11 14 0 2
+            Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
+            X_ERROR(0.12) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 8 12 15 10 13
+            CX 5 2 11 7 16 14
+            Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
+            X_ERROR(0.13) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 2 12 9 10 7
+            CX 5 3 11 8 16 15
+            Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
+            X_ERROR(0.14) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.15) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            M 4 12 5 11 0 16 10 6
+            X_ERROR(0.16) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            R 4 12 5 11 0 16 10 6
+            X_ERROR(0.17) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.18) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 7 12 14 6 9
+            CX 5 8 11 13 0 1
+            Y_ERROR(0.02) 4 7 12 14 5 8 11 13 0 1 6 9
+            X_ERROR(0.19) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 1 12 8 6 3
+            CX 5 9 11 14 0 2
+            Y_ERROR(0.02) 4 1 12 8 5 9 11 14 0 2 6 3
+            X_ERROR(0.2) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 8 12 15 10 13
+            CX 5 2 11 7 16 14
+            Y_ERROR(0.02) 4 8 12 15 5 2 11 7 16 14 10 13
+            X_ERROR(0.21) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            CZ 4 2 12 9 10 7
+            CX 5 3 11 8 16 15
+            Y_ERROR(0.02) 4 2 12 9 5 3 11 8 16 15 10 7
+            X_ERROR(0.22) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            H 4 12 5 11 0 16 10 6
+            X_ERROR(0.23) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            M 4 12 5 11 0 16 10 6
+            X_ERROR(0.24) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            PAULI_CHANNEL_1(0.15803, 0.15803, 0.0852613) 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16
+            DETECTOR(1, 1, 0) rec[-24] rec[-16]
+            DETECTOR(2, 2, 0) rec[-23] rec[-15]
+            DETECTOR(1, 2, 0) rec[-22] rec[-14]
+            DETECTOR(2, 1, 0) rec[-21] rec[-13]
+            DETECTOR(0, 1, 0) rec[-20] rec[-12]
+            DETECTOR(3, 2, 0) rec[-19] rec[-11]
+            DETECTOR(2, 0, 0) rec[-18] rec[-10]
+            DETECTOR(1, 3, 0) rec[-17] rec[-9]
+            DETECTOR(1, 1, 0) rec[-16] rec[-8]
+            DETECTOR(2, 2, 0) rec[-15] rec[-7]
+            DETECTOR(1, 2, 0) rec[-14] rec[-6]
+            DETECTOR(2, 1, 0) rec[-13] rec[-5]
+            DETECTOR(0, 1, 0) rec[-12] rec[-4]
+            DETECTOR(3, 2, 0) rec[-11] rec[-3]
+            DETECTOR(2, 0, 0) rec[-10] rec[-2]
+            DETECTOR(1, 3, 0) rec[-9] rec[-1]
+            """
         )
         error_model = [m1, m2, m3]
         converted_stim_circuit = self.converter.convert(
             self.interpreted_eka_rsc,
             error_models=error_model,
         )
-
-        print(converted_stim_circuit)
         self.assert_without_detector_order(expected_output_str, converted_stim_circuit)
 
 

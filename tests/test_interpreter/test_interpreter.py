@@ -25,6 +25,7 @@ from loom.eka.operations import MeasureBlockSyndromes
 from loom.interpreter import InterpretationStep, interpret_eka, cleanup_final_step
 
 
+# pylint: disable=too-many-instance-attributes
 class TestInterpreter(unittest.TestCase):
     """
     Tests the interpreter API, interpret_eka, and abstracted functions like

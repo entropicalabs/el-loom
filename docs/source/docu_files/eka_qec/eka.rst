@@ -7,12 +7,12 @@ Eka
 
 The data structure itself and all its sub-components implement a comprehensive set of validations that reduces the room for low-level errors when using these abstractions with the rest of Loom.
 
-:class:`~loom.eka.eka.Eka` was created to compactly represent an error correct quantum circuit. It allows the creation of QEC codes using the :class:`~loom.eka.block.Block` component.
+:class:`~loom.eka.eka.Eka` was created to compactly represent an error-corrected quantum circuit. It allows the creation of QEC codes using the :class:`~loom.eka.block.Block` component.
 
 It is composed of three main components:
 
 - lattice: a :class:`~loom.eka.lattice.Lattice` object that defines the geometry (and coordinates) of the system.
-- blocks: a set of :class:`~loom.eka.block.Block` that represent all the logical qubits in the initial state of our logical algorithm. They are given in the form of a tuple.
+- blocks: a set of :class:`~loom.eka.block.Block` objects that represent all the logical qubits in the initial state of our logical algorithm. They are given in the form of a tuple.
 - operations: a set of :mod:`~loom.eka.operations` that represent the different transformations that will be applied on the system to perform the intended computation. These can be code-agnostic (e.g. measuring syndromes) or code-specific (e.g. lattice surgery, state preparation, etc.). They are given in the form of timeslices, e.g. :code:`operations[i]` is as tuple of operations executed in parallel at time :math:`i`.
 
 More automations are provided as plugins to the main :mod:`~loom.eka.eka.Eka` module.
@@ -74,7 +74,7 @@ The next step would be to interpret it and execute it on a backend.
 Validations
 ^^^^^^^^^^^
 
-The :class:`~loom.eka.eka.Eka` dataclass implements some simple validation functions. This is done to ensure certain constraints enforced in the later stages are satisfied and prevent the user from starting from scratch because of an invalid definition of :class:`~loom.eka.eka.Eka`.
+The :class:`~loom.eka.eka.Eka` dataclass implements some simple validation functions. This is done to ensure that certain constraints enforced in the later stages are satisfied and to prevent the user from starting from scratch due to an invalid definition of :class:`~loom.eka.eka.Eka`.
 
 The list of validators includes:
 

@@ -5,7 +5,7 @@ The lowest layer of representation, used as foundation for QEC, is defined to be
 
 Channels
 ^^^^^^^^
-The data registers, called channels in Loom, are represented by the :class:`~loom.eka.circuit.Channel` class. A channel can hold either classical or quantum data. A :class:`~loom.eka.circuit.Channel` is uniquely identified by its `id`, it can also have a `label` and as a `type`
+The data registers, called channels in Loom, are represented by the :class:`~loom.eka.circuit.Channel` class. A channel can hold either classical or quantum data. A :class:`~loom.eka.circuit.Channel` is uniquely identified by its `id`, it can also have a `label` and a `type`
 (either classical or quantum). The :class:`~loom.eka.circuit.ChannelType` of a channel is assumed to be constant throughout the lifetime of the channel. The example below shows how to create channels in Loom:
 
 .. literalinclude:: ../../python/circuit/channel_creation.py
@@ -21,12 +21,12 @@ The circuits in Loom are represented by the :class:`~loom.eka.circuit.Circuit` c
 
 Loom's framework is meant to be as flexible as possible; therefore, one can create operations with any names and any number of classical/quantum channels. These are only abstract representations.
 
-In circuits, we typically want to have operations acting on disjoint channels to be run in parallel. This can be done by wrapping the parallel circuit elements in a tuple. Within an instance :class:`~loom.eka.circuit.Circuit`, the sequence of operations has to contain either :class:`~loom.eka.circuit.Circuit` instances or tuples of :class:`~loom.eka.circuit.Circuit` instances, but not both, so make sure to wrap all the elements in tuples. The example below shows how to create a circuit with parallel operations:
+In circuits, we typically want to have operations acting on disjoint channels to be run in parallel. This can be done by wrapping the parallel circuit elements in a tuple. Within an instance of :class:`~loom.eka.circuit.Circuit`, the sequence of operations has to contain either :class:`~loom.eka.circuit.Circuit` instances or tuples of :class:`~loom.eka.circuit.Circuit` instances, but not both, so make sure to wrap all the elements in tuples. The example below shows how to create a circuit with parallel operations:
 
 .. literalinclude:: ../../python/circuit/parallel_operation.py
     :language: python
 
-**Important note**: When using parallel execution (i.e., providing a `tuple(tuple(Circuit, ...), ...))` as circuit parameter), the elements within the sequence of tuples will be executed on the step corresponding to their index in the sequence, regardless of the duration of the previous elements. This can lead to an unexpected error situation where 2 gates are applied to the same channel at the same time step. Loom leaves the user freedom on how to pad the circuit (you may use empty tuples to do so). The example below illustrates this:
+**Important note**: When using parallel execution (i.e., providing a `tuple(tuple(Circuit, ...), ...)` as circuit parameter), the elements within the sequence of tuples will be executed on the step corresponding to their index in the sequence, regardless of the duration of the previous elements. This can lead to an unexpected error situation where 2 gates are applied to the same channel at the same time step. Loom leaves the user freedom on how to pad the circuit (you may use empty tuples to do so). The example below illustrates this:
 
 .. literalinclude:: ../../python/circuit/scheduling_issue.py
    :language: python
@@ -53,7 +53,7 @@ The :class:`~loom.eka.circuit.Circuit` class provides a set of utilities to mani
 Some extra utilities exist for defining circuits independently of channels.
 
 - :meth:`~loom.eka.circuit.Circuit.from_circuits` : 
-    Build a `~loom.eka.circuit.Circuit` object from a representation of its content with relative qubits indices.
+    Build a :class:`~loom.eka.circuit.Circuit` object from a representation of its content with relative qubits indices.
 - :meth:`~loom.eka.circuit.Circuit.as_gate`: 
     Create a gate without needing to specify channels (they will be automatically generated).
 

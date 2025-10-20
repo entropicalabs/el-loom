@@ -23,6 +23,7 @@ from loom.eka import (
 from loom.eka.tanner_graphs import ClassicalTannerGraph, TannerGraph
 
 
+# pylint: disable=duplicate-code
 class TestMatrices(unittest.TestCase):
     """
     Test for Eka utilities.
@@ -54,7 +55,9 @@ class TestMatrices(unittest.TestCase):
         self.assertTrue(np.array_equal(binary_gaussian_elimination(array), array_bge))
 
 
+# pylint: disable=invalid-name, too-many-lines, too-many-instance-attributes, too-many-statements, too-many-locals
 class TestMatricesUtilities(unittest.TestCase):
+    """Unit tests for matrix utilities in the eka module."""
 
     def setUp(self):
 
@@ -68,8 +71,8 @@ class TestMatricesUtilities(unittest.TestCase):
 
         # Edges corresponding to the Tanner graph of Hamming code
         data_supports_ham = [[0, 1, 2, 3], [1, 2, 4, 5], [2, 3, 5, 6]]
-        datas_ham = [i for i in range(7)]
-        checks_ham = [i for i in range(7, 10)]
+        datas_ham = list(range(7))
+        checks_ham = list(range(7, 10))
 
         self.nodes_hamming = [((i,), {"label": "check"}) for i in checks_ham] + [
             ((d,), {"label": "data"}) for d in datas_ham
@@ -239,12 +242,9 @@ class TestMatricesUtilities(unittest.TestCase):
         ### REPETITION CODE VARIABLES
         self.distance_rep = 21
 
-        self.H_rep = np.array(
-            [
-                [1 if (i == j or i == (j + 1)) else 0 for i in range(self.distance_rep)]
-                for j in range(self.distance_rep - 1)
-            ]
-        )
+        self.H_rep = np.eye(
+            self.distance_rep - 1, self.distance_rep, dtype=int
+        ) + np.eye(self.distance_rep - 1, self.distance_rep, k=1, dtype=int)
 
         # Nodes and edges  corresponding to a Tanner graph with a single component
         self.nodes_bitflip_rep = [
@@ -356,20 +356,20 @@ class TestMatricesUtilities(unittest.TestCase):
 
         # Check for invalid (non-binary) parity-check matrix
         with self.assertRaises(ValueError) as cm:
-            T = verify_css_code_condition(self.H_hamming, self.H_nb_err)
+            _ = verify_css_code_condition(self.H_hamming, self.H_nb_err)
         self.assertEqual(str(cm.exception), self.err_msg_H_nb)
 
         with self.assertRaises(ValueError) as cm:
-            T = verify_css_code_condition(self.H_nb_err, self.H_hamming)
+            _ = verify_css_code_condition(self.H_nb_err, self.H_hamming)
         self.assertEqual(str(cm.exception), self.err_msg_H_nb)
 
         # Check for empty parity-check matrix
         with self.assertRaises(ValueError) as cm:
-            T = verify_css_code_condition(self.H_zeros, self.H_hamming)
+            _ = verify_css_code_condition(self.H_zeros, self.H_hamming)
         self.assertEqual(str(cm.exception), self.err_msg_H_empty)
 
         with self.assertRaises(ValueError) as cm:
-            T = verify_css_code_condition(self.H_hamming, self.H_zeros)
+            _ = verify_css_code_condition(self.H_hamming, self.H_zeros)
         self.assertEqual(str(cm.exception), self.err_msg_H_empty)
 
     ### CLASSICAL PARITY CHECK MATRIX TESTS
@@ -384,7 +384,7 @@ class TestMatricesUtilities(unittest.TestCase):
 
         for invalid_input in self.invalid_matrix_inputs:
             with self.assertRaises(TypeError) as cm:
-                P = ClassicalParityCheckMatrix(invalid_input)
+                _ = ClassicalParityCheckMatrix(invalid_input)
             self.assertEqual(str(cm.exception), err_msg)
 
     def test_classical_parity_check_matrix_from_matrix(self):
@@ -650,7 +650,7 @@ class TestMatricesUtilities(unittest.TestCase):
         P = ClassicalParityCheckMatrix(self.Hx_shor)
         for invalid_pauli in invalid_pauli_inputs:
             with self.assertRaises(ValueError) as cm:
-                stabilizers = P.to_stabilizers(pauli_type=invalid_pauli)
+                _ = P.to_stabilizers(pauli_type=invalid_pauli)
             self.assertEqual(str(cm.exception), err_msg)
 
     def test_classical_parity_check_matrix_from_classical_tanner_graph(self):
@@ -709,7 +709,7 @@ class TestMatricesUtilities(unittest.TestCase):
             "Comparison is only supported with another ClassicalParityCheckMatrix."
         )
         with self.assertRaises(TypeError) as cm:
-            are_they_equal = P_ham == self.H_hamming
+            _ = P_ham == self.H_hamming
         self.assertEqual(str(cm.exception), err_msg)
 
     # PARITY CHECK MATRIX TESTS
@@ -724,7 +724,7 @@ class TestMatricesUtilities(unittest.TestCase):
 
         for invalid_input in self.invalid_matrix_inputs:
             with self.assertRaises(TypeError) as cm:
-                P = ParityCheckMatrix(invalid_input)
+                _ = ParityCheckMatrix(invalid_input)
             self.assertEqual(str(cm.exception), err_msg)
 
     def test_parity_check_matrix_from_matrix(self):
@@ -938,8 +938,10 @@ class TestMatricesUtilities(unittest.TestCase):
             ]
         )
 
-        err_msg = f"Input Stabilizers {non_comm_stabs[0]} and {non_comm_stabs[2]}"
-        " do not commute."
+        err_msg = (
+            f"Input Stabilizers {non_comm_stabs[0]} and {non_comm_stabs[2]}"
+            " do not commute."
+        )
 
         with self.assertRaises(ValueError) as cm:
             _ = ParityCheckMatrix(non_comm_stabs)
@@ -974,7 +976,7 @@ class TestMatricesUtilities(unittest.TestCase):
         # EXAMPLE 3 - Laflamme code
         P_laflamme = ParityCheckMatrix(self.H_laflamme)
         with self.assertRaises(ValueError) as cm:
-            Hx, Hz = P_laflamme.get_components()
+            _ = P_laflamme.get_components()
         self.assertEqual(str(cm.exception), err_msg)
 
     def test_parity_check_matrix_properties(self):
@@ -1014,7 +1016,7 @@ class TestMatricesUtilities(unittest.TestCase):
         # Check for error message for invalid inputs
         err_msg = "Comparison is only supported with another ParityCheckMatrix."
         with self.assertRaises(TypeError) as cm:
-            are_they_equal = P_steane == self.H_steane
+            _ = P_steane == self.H_steane
         self.assertEqual(str(cm.exception), err_msg)
 
 

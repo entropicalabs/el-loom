@@ -15,8 +15,8 @@ from stim import CircuitInstruction, GateTarget, target_rec
 from stim import Circuit as StimCircuit
 
 
-from loom.interpreter import InterpretationStep, Syndrome, LogicalObservable, Cbit
-from loom.eka import Circuit, Channel
+from ..interpreter import InterpretationStep, Syndrome, LogicalObservable, Cbit
+from ..eka import Circuit, Channel
 
 from .circuit_error_model import ApplicationMode, CircuitErrorModel, ErrorType
 
@@ -221,6 +221,8 @@ class EkaCircuitToStimConverter:
             Mapping between Eka coordinates and stim qubit instructions
         """
         eka_stim_qubits_map = {}
+        # pylint: disable=attribute-defined-outside-init
+        self.eka_stim_qubits_coords_map = {}
 
         eka_all_qubits = [
             ast.literal_eval(chan.label)
@@ -249,6 +251,10 @@ class EkaCircuitToStimConverter:
                         return (coords[0], coords[1])
                     if coords[2] == 0:
                         return (coords[0] + 0.5, coords[1] + 0.5)
+                    # Patched up case for proper handling of Color Codes until Lattice
+                    # refactor
+                    if coords[2] == 2:
+                        return (coords[0] + 0.05, coords[1] + 0.05)
                     raise ValueError(
                         f"Invalid coordinate {coords}. "
                         "Coordinates should be in the form (x, y, 0) or (x, y, 1)."
@@ -263,6 +269,9 @@ class EkaCircuitToStimConverter:
         ):
 
             new_coords = eka_to_stim_coordinates(coords)
+
+            # Store Loom mapping as a class attribute to be used outside this function
+            self.eka_stim_qubits_coords_map.update({coords: new_coords})
             eka_stim_qubits_map.update(
                 {
                     coords: self.generate_stim_circuit_instruction(
@@ -336,6 +345,8 @@ class EkaCircuitToStimConverter:
         return {
             "identity": "I",
             "hadamard": "H",
+            "phase": "S",
+            "phase_inv": "S_DAG",
             "h": "H",
             "x": "X",
             "y": "Y",
@@ -459,7 +470,7 @@ class EkaCircuitToStimConverter:
         self,
         name: str,
         targets: list[int],
-        gate_args: list = None,
+        gate_args: list | None = None,
     ):
         """
         Return the StimCircuit.CircuitInstruction corresponding
@@ -500,7 +511,7 @@ class EkaCircuitToStimConverter:
         self,
         interpreted_eka: InterpretationStep,
         with_ticks=False,
-        error_models: list[CircuitErrorModel] = None,
+        error_models: list[CircuitErrorModel] | None = None,
     ) -> StimCircuit:
         """
         A method to convert the eka_circuit into stim circuit
@@ -825,12 +836,23 @@ class EkaCircuitToStimConverter:
                 measurement_channel_order_map[channel] - meas_pointer
                 for channel in channels_list
             ]
+            # Add space-time coordinates of detectors and extra indices such as color
+            detector_labels = detector.labels
 
+            # Transform space coordinates from Loom convention into real coordinates
+            detector_args = list(
+                self.eka_stim_qubits_coords_map[detector_labels["space_coordinates"]]
+                + detector_labels["time_coordinate"]
+            )
+
+            # Add color index if present
+            if detector_labels.get("color") is not None:
+                detector_args.append(detector_labels["color"])
             stim_circ.append(
                 self.generate_stim_circuit_instruction(
                     name="DETECTOR",
                     targets=[target_rec(idx) for idx in targets],
-                    gate_args=[],
+                    gate_args=detector_args,
                 )
             )
 

@@ -31,7 +31,6 @@ from loom.eka.operations import (
     ResetAllDataQubits,
 )
 from loom.interpreter.applicator import (
-    logical_pauli,
     reset_all_data_qubits,
     reset_all_ancilla_qubits,
     measurelogicalpauli,
@@ -78,6 +77,8 @@ def return_custom_block(  # pylint: disable=too-many-arguments, too-many-positio
 
 
 class TestApplicator(unittest.TestCase):
+    """Tests for the Applicator classes."""
+
     def setUp(self):
         self.base_step = InterpretationStep()
 
@@ -143,7 +144,7 @@ class TestApplicator(unittest.TestCase):
     def test_applicator_return_method(self):
         """
         Test that a BaseApplicator raises the right error when giving an unsupported
-         operation.
+        operation.
         """
         # Should raise the right type of error.
         applicator = BaseApplicator(self.eka_no_blocks)
@@ -162,7 +163,7 @@ class TestApplicator(unittest.TestCase):
     def test_applicator_not_mapped(self):
         """
         Test that the applicator raises a NotImplementedError if the operation is not
-         included in the supported operations.
+        included in the supported operations.
         """
         # Mock ReadObservable Operation
         rand_op = unittest.mock.Mock(name="RandomOperation")
@@ -186,7 +187,7 @@ class TestApplicator(unittest.TestCase):
         err_str = "Operation RandomOperation is not supported by CodeApplicator"
         self.assertIn(err_str, str(cm.exception))
 
-    def test_applicator_measurelogical_xyz(self):
+    def test_applicator_measurelogical_xyz(self):  # pylint: disable=too-many-locals
         """Test that the applicator creates the correct circuit, syndromes and
         logical observable for a MeasureLogicalX or MeasureLogicalZ operation.
         MeasureLogicalY is currently not supported. This is done for a standard Rotated
@@ -303,7 +304,6 @@ class TestApplicator(unittest.TestCase):
             )
 
             base_step = InterpretationStep(
-                circuit=Circuit(name="abstract_circuit"),
                 block_history=((rsc_block,),),
             )
             output_step = measurelogicalpauli(
@@ -350,15 +350,15 @@ class TestApplicator(unittest.TestCase):
 
             ## Check for wrong input
             y_op = MeasureLogicalY(rsc_block.unique_label)
-            err_msg = f"Logical measurement in Y basis is not supported"
+            err_msg = "Logical measurement in Y basis is not supported"
             with self.assertRaises(ValueError) as cm:
-                meas_op = measurelogicalpauli(base_step, y_op, False, False)
+                _ = measurelogicalpauli(base_step, y_op, False, False)
             self.assertEqual(str(cm.exception), err_msg)
 
             wrong_op = LogicalZ(rsc_block.unique_label)
             err_msg = f"Operation {wrong_op.__class__.__name__} not supported"
             with self.assertRaises(ValueError) as cm:
-                meas_op = measurelogicalpauli(base_step, wrong_op, False, False)
+                _ = measurelogicalpauli(base_step, wrong_op, False, False)
             self.assertEqual(str(cm.exception), err_msg)
 
     def test_logical_reset(self):
@@ -370,12 +370,11 @@ class TestApplicator(unittest.TestCase):
 
         # Check the reset for all possible states
         for state in SingleQubitPauliEigenstate:
-            # Create the eka object with only the logical operation
+            # Create the Eka object with only the logical operation
             logical_op = ResetAllDataQubits(rsc_block.unique_label, state=state)
             # Create the base step with the block history and then interpret the
             # operation
             base_step = InterpretationStep(
-                circuit=Circuit(name="abstract_circuit"),
                 block_history=((rsc_block,),),
             )
             output_step = reset_all_data_qubits(
@@ -425,12 +424,11 @@ class TestApplicator(unittest.TestCase):
         rsc_ancilla_channels = {
             qub: Channel("quantum", str(qub)) for qub in rsc_block.ancilla_qubits
         }
-        # Create the eka object with only the logical operation
+        # Create the Eka object with only the logical operation
         ancilla_reset = ResetAllDataQubits(rsc_block.unique_label)
         # Create the base step with the block history and then interpret the
         # operation
         base_step = InterpretationStep(
-            circuit=Circuit(name="abstract_circuit"),
             block_history=((rsc_block,),),
         )
         output_step = reset_all_ancilla_qubits(
@@ -462,11 +460,6 @@ class TestApplicator(unittest.TestCase):
         lattice = Lattice.square_2d((10, 20))
         rsc_block = self.rot_surf_code_1
 
-        # Measure for 2 cycles
-        n_cycles = 3
-        # meas_block_syn = MeasureBlockSyndromes(
-        #     rsc_block.unique_label, n_cycles=n_cycles
-        # )
         meas_block_log = MeasureLogicalZ(rsc_block.unique_label)
         input_eka = Eka(lattice, blocks=[rsc_block], operations=[meas_block_log])
 
@@ -482,7 +475,7 @@ class TestApplicator(unittest.TestCase):
             syndrome_meas_labels = [
                 f"{meas[0]}_{meas[1]}" for meas in syndrome.measurements
             ]
-            [
+            _ = [
                 self.assertIn(syndrome_meas_label, classical_channel_labels)
                 for syndrome_meas_label in syndrome_meas_labels
             ]

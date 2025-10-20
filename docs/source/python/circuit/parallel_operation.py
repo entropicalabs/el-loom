@@ -21,12 +21,12 @@ print(s_circuit)
 # 2: g12
 
 
-# gate 1 and 2 applied in parallel
+# Gate 1 and 2 applied in parallel
 p_circuit = Circuit(
     name="p_circuit",
     circuit=(
         (gate_on_1, gate_on_2),  # parallel gates
-        (gate_on_1_and_2,),  # has to wrap in a tuple
+        (gate_on_1_and_2,),  # has to be wrapped in a tuple
     ),
 )
 

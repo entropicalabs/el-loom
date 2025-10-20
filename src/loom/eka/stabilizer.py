@@ -95,6 +95,8 @@ class Stabilizer(PauliOperator):
     )(coordinate_length_error)
 
     # Magic methods
+    # def __str__(self) -> str: Method is inherited from PauliOperator
+
     def __repr__(self) -> str:
         """
         Return a string representation of the stabilizer.

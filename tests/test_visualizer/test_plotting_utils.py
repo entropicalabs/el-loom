@@ -9,6 +9,7 @@ Ltd.
 
 import unittest
 
+import networkx as nx
 import plotly.graph_objs as go
 from plotly.subplots import make_subplots
 import numpy as np
@@ -28,7 +29,7 @@ from loom.visualizer.plotting_utils import (
     order_points_counterclockwise,
     draw_half_circle,
     get_label_for_circuit,
-    convert_circuit_to_igraph,
+    convert_circuit_to_nx_graph,
 )
 
 
@@ -225,11 +226,12 @@ class TestPlottingUtils(unittest.TestCase):
         self.assertEqual("cnot(D1,D2)", get_label_for_circuit(self.circ2))
         self.assertEqual("syndrome_extraction", get_label_for_circuit(self.circ3))
 
-    def test_convert_circuit_to_igraph(self):
-        """Test the conversion of a circuit to an igraph graph."""
-        graph, labels_nodes = convert_circuit_to_igraph(self.circ3)
-        self.assertEqual(3, graph.vcount())
-        self.assertEqual([[0, 1, 1], [0, 0, 0], [0, 0, 0]], list(graph.get_adjacency()))
+    def test_convert_circuit_to_nx_graph(self):
+        """Test the conversion of a circuit to a NetworkX DiGraph."""
+        graph, labels_nodes = convert_circuit_to_nx_graph(self.circ3)
+        adj_matrix = nx.to_numpy_array(graph, dtype=int).tolist()
+        self.assertEqual([[0, 1, 1], [0, 0, 0], [0, 0, 0]], adj_matrix)
+        # Node labels
         self.assertEqual(["syndrome_extraction", "h(Q1)", "cnot(D1,D2)"], labels_nodes)
 
 

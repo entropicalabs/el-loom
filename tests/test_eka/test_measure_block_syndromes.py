@@ -1,8 +1,16 @@
-import unittest
-from itertools import product
+"""
+Copyright (c) Entropica Labs Pte Ltd 2025.
+
+Use, distribution and reproduction of this program in its source or compiled
+form is prohibited without the express written consent of Entropica Labs Pte
+Ltd.
+
+"""
+
 from copy import deepcopy
-import networkx as nx
+import unittest
 import logging
+import networkx as nx
 
 from loom.eka import (
     Circuit,
@@ -16,21 +24,19 @@ from loom.eka import (
     PauliOperator,
 )
 from loom.eka.operations import MeasureBlockSyndromes
-from loom.interpreter import InterpretationStep, interpret_eka, Syndrome, Detector
+from loom.interpreter import InterpretationStep, Syndrome, Detector
 from loom.interpreter.applicator import CodeApplicator
 from loom.eka.tanner_graphs import ClassicalTannerGraph
 
 
+# pylint: disable=invalid-name, too-many-instance-attributes, too-many-locals
 class TestMeasureBlockSyndromes(unittest.TestCase):
+    """
+    Test for the MeasureBlockSyndromes applicator and logging.
+    """
+
     def setUp(self):
         self.base_step = InterpretationStep()
-
-        # Mock MeasureStabilizerSyndrome Operation
-        stab_to_meas = Stabilizer(
-            pauli="XX",
-            data_qubits=((0, 0), (0, 1)),
-            ancilla_qubits=(),
-        )
 
         self.square_2d_lattice = Lattice.square_2d((10, 20))
         self.eka_no_blocks = Eka(self.square_2d_lattice)
@@ -560,7 +566,6 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         meas_block_op = MeasureBlockSyndromes(rsc_block.unique_label)
         input_eka = Eka(lattice, blocks=[rsc_block], operations=[meas_block_op])
         base_step = InterpretationStep(
-            circuit=Circuit(name="abstract_circuit"),
             block_history=((rsc_block,),),
         )
         output_step = CodeApplicator(input_eka).apply(
@@ -574,7 +579,8 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         self.assertEqual(meas_synd_circuit.name, "measure q1 syndromes 1 time(s)")
         # Test that circuits are equivalent
         self.assertEqual(expected_rsc_circuit, meas_synd_circuit)
-        # The order of gates within a timestep does not matter but the gate and the channels should be the same.
+        # The order of gates within a timestep does not matter but the gate and the
+        # channels should be the same.
         self.assertEqual(
             [
                 {
@@ -636,7 +642,8 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         self.assertEqual(meas_synd_circuit_2.name, "measure q1 syndromes 2 time(s)")
         # Test that circuits are equivalent
         self.assertEqual(meas_synd_circuit_2, expected_total_synd_circ)
-        # The Circuit in the InterpretationStep object returned by the Applicator should be the same as the Syndrome Circuit.
+        # The Circuit in the InterpretationStep object returned by the Applicator should
+        # be the same as the Syndrome Circuit.
         self.assertEqual(
             [
                 {
@@ -692,7 +699,6 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         meas_block_op = MeasureBlockSyndromes(rsc_block.unique_label, n_cycles=n_cycles)
         input_eka = Eka(lattice, blocks=[rsc_block], operations=[meas_block_op])
         base_step = InterpretationStep(
-            circuit=Circuit(name="abstract_circuit"),
             block_history=((rsc_block,),),
         )
 

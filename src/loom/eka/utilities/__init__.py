@@ -7,7 +7,13 @@ Ltd.
 
 """
 
-from .enums import SingleQubitPauliEigenstate, Direction, Orientation, ResourceState
+from .enums import (
+    SingleQubitPauliEigenstate,
+    Direction,
+    Orientation,
+    ResourceState,
+    DiagonalDirection,
+)
 from .exceptions import SyndromeMissingError, AntiCommutationError
 from .graph_matrix_utils import (
     binary_gaussian_elimination,
@@ -17,29 +23,16 @@ from .graph_matrix_utils import (
     cardinality_distribution,
     verify_css_code_condition,
 )
-from .serialization import (
-    findall,
-    apply_to_nested,
-    dumps,
-    # dump,
-    loads,
-    # load
-)
-from .validation_tools import (
-    uuid_error,
-    retrieve_field,
-    dataclass_params,
-    larger_than_zero_error,
-)
-
-# # from .pauli_array import PauliArray
-# # from .pauli_array_computation import rowsum
+from .logical_operator_finding import find_logical_operator_set
+from .pauli_array import PauliArray
+from .pauli_array_computation import rowsum, ndarray_rowsum
 from .pauli_binary_vector_rep import (
-    # PauliOp,
+    PauliOp,
     SignedPauliOp,
+    UnsignedPauliOp,
     pauliops_anti_commute,
 )
-from .pauli_commutation import paulis_anti_commute  # , anti_commutes_npfunc
+from .pauli_commutation import paulis_anti_commute, anti_commutes_npfunc
 from .pauli_computation import g, g_npfunc
 from .pauli_format_conversion import (
     paulichar_to_xz,
@@ -47,16 +40,33 @@ from .pauli_format_conversion import (
     paulixz_to_char,
     paulixz_to_char_npfunc,
 )
+from .serialization import (
+    findall,
+    apply_to_nested,
+    dumps,
+    loads,
+)
 from .stab_array import (
     StabArray,
-    merge_stabarrays,
-    # #     swap_stabarray_rows,
-    stabarray_bge,
-    # #     reduce_stabarray,
-    stabarray_bge_with_bookkeeping,
-    reduce_stabarray_with_bookkeeping,
-    invert_bookkeeping_matrix,
     find_destabarray,
+    invert_bookkeeping_matrix,
     is_stabarray_equivalent,
+    is_subset_of_stabarray,
+    merge_stabarrays,
+    reduce_stabarray,
+    reduce_stabarray_with_bookkeeping,
+    reindex_stabarray,
+    swap_stabarray_rows,
+    sparse_formatter,
+    stabarray_bge,
+    stabarray_bge_with_bookkeeping,
+    stabarray_standard_form,
+    subtract_stabarrays,
 )
-from .tableau import is_tableau_valid  # tableau_generates_pauli_group
+from .tableau import is_tableau_valid, tableau_generates_pauli_group
+from .validation_tools import (
+    uuid_error,
+    retrieve_field,
+    dataclass_params,
+    larger_than_zero_error,
+)

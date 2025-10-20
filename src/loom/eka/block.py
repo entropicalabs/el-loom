@@ -38,8 +38,6 @@ from .utilities.validation_tools import (
     retrieve_field,
 )
 
-temp_data_797 = "9602d766d506edb5"
-
 
 @dataclass(**dataclass_params)
 class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
@@ -74,10 +72,10 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
         - The stabilizers commute with each other.
         - The logical operators commute with each other.
         - The stabilizers commute with the logical operators.
-        - The logical X and Z operators anti-commute at the same index and commute at
-          different indices.
-        - The number of qubits and stabilizers in the Block is compatible with the
-          number of logical qubits.
+        - The logical X and Z operators anti-commute at the same index and commute at \
+        different indices.
+        - The number of qubits and stabilizers in the Block is compatible with the \
+        number of logical qubits.
     uuid : str, optional
         Unique identifier for the block. If no uuid is provided, a unique uuid is
         generated automatically using the uuid module.
@@ -210,9 +208,8 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
 
     # Field validators are executed after model_validator with mode="before"
     @field_validator("stabilizers", mode="before")
-    def _validate_distinct_stabilizers(
-        cls, stabilizers: tuple[Stabilizer, ...]
-    ):  # pylint: disable=no-self-argument
+    @classmethod
+    def _validate_distinct_stabilizers(cls, stabilizers: tuple[Stabilizer, ...]):
         """
         Check that stabilizers are distinct.
         """
@@ -226,9 +223,10 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
     )
 
     @field_validator("logical_x_operators", mode="before")
+    @classmethod
     def _validate_distinct_logical_x_operators(
         cls, logical_x_operators: tuple[PauliOperator, ...]
-    ):  # pylint: disable=no-self-argument
+    ):
         """
         Check that logical X operators are distinct.
         """
@@ -242,9 +240,10 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
     )
 
     @field_validator("logical_z_operators", mode="before")
+    @classmethod
     def _validate_distinct_logical_z_operators(
         cls, logical_z_operators: tuple[PauliOperator, ...]
-    ):  # pylint: disable=no-self-argument
+    ):
         """
         Check that logical Z operators are distinct.
         """
@@ -666,15 +665,17 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
         qubits would look like this (where we omitted plotting data qubits with no Pauli
         charge):
 
-        Y -- X -- X -- X -- Y
-        |    |    |    |    |
-        Z --   --   --   -- Z
-        |    |    |    |    |
-        Z --   --   --   -- Z
-        |    |    |    |    |
-        Z --   --   --   -- Z
-        |    |    |    |    |
-        Y -- X -- X -- X -- Y
+        .. code-block::
+
+            Y -- X -- X -- X -- Y
+            |    |    |    |    |
+            Z --   --   --   -- Z
+            |    |    |    |    |
+            Z --   --   --   -- Z
+            |    |    |    |    |
+            Z --   --   --   -- Z
+            |    |    |    |    |
+            Y -- X -- X -- X -- Y
 
         In this example of the rotated surface code, the four logical corners have Pauli
         charge Y, and there are two boundaries with Pauli charge X and two with Pauli charge
@@ -985,7 +986,7 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
 
         # Retrieve space coordinates
         labels = {
-            stab.uuid: {"space_coordinate": stab.ancilla_qubits[0]}
+            stab.uuid: {"space_coordinates": stab.ancilla_qubits[0]}
             for stab in self.stabilizers
         }
 

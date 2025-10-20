@@ -7,7 +7,6 @@ Ltd.
 
 """
 
-# pylint: disable=import-self
 from .interpreter import interpret_eka, cleanup_final_step
 from .syndrome import Syndrome
 from .detector import Detector

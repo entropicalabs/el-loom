@@ -491,7 +491,6 @@ class CircuitErrorModel(BaseModel):
                 if model.is_time_dependent:
                     new_func = lambda t, _: [0.0] * expected_count
                 else:
-
                     new_func = lambda _, __: [0.0] * expected_count
                 object.__setattr__(model, "global_time_error_probability", new_func)
             else:
@@ -809,7 +808,9 @@ class HomogeneousTimeDependentCEM(CircuitErrorModel):
     error_probability: ErrorProbProtocol
 
     def model_post_init(self, __context):
-        """Post-initialization for HomogeneousTimeDependentCEM to set constant gate errors."""
+        """
+        Post-initialization for HomogeneousTimeDependentCEM to set constant gate errors.
+        """
 
         object.__setattr__(
             self,
@@ -910,7 +911,9 @@ class AsymmetricDepolarizeCEM(CircuitErrorModel):
     )
 
     def model_post_init(self, __context):
-        """Post-initialization for AsymmetricDepolarizeCEM to set gate error probabilities."""
+        """
+        Post-initialization for AsymmetricDepolarizeCEM to set gate error probabilities.
+        """
         object.__setattr__(
             self,
             "global_time_error_probability",

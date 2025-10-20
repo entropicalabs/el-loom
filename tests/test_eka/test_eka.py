@@ -251,7 +251,7 @@ class TestEka(unittest.TestCase):
             Eka(self.square_2d_lattice, blocks=[q1, q4])
 
         err_msg = (
-            f"Block 'q4' has ancilla qubit indices which are too large for the lattice."
+            "Block 'q4' has ancilla qubit indices which are too large for the lattice."
         )
         self.assertIn(err_msg, str(cm.exception))
 
@@ -264,7 +264,7 @@ class TestEka(unittest.TestCase):
             Eka(self.square_2d_lattice, blocks=[q1, q6])
 
         err_msg = (
-            f"Block 'q6' has ancilla qubit indices which are too large for the lattice."
+            "Block 'q6' has ancilla qubit indices which are too large for the lattice."
         )
         self.assertIn(err_msg, str(cm.exception))
 

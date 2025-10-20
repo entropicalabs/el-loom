@@ -38,6 +38,7 @@ class TestEkaCircuitToQasmConverter(unittest.TestCase):
         lattice = Lattice.linear((distance + distance + 1,))
 
         base_position = (1,)
+        # pylint: disable=duplicate-code
         initial_rep_block = Block(
             unique_label="q1",
             stabilizers=tuple(
@@ -74,7 +75,59 @@ class TestEkaCircuitToQasmConverter(unittest.TestCase):
         """
         Check Circuit to QASM string conversion
         """
-        repetition_qasm_true = 'OPENQASM 3.0;\ninclude "stdgates.inc";\nqubit[5] data_qreg;\nqubit[0] anc_qreg;\nbit[3] data_creg0;\nbit[2] anc_creg0;\nbit[2] anc_creg1;\nreset data_qreg[0];\nreset data_qreg[2];\nreset data_qreg[4];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nreset data_qreg[1];\nreset data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nh data_qreg[1];\nh data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\ncz data_qreg[1], data_qreg[0];\ncz data_qreg[3], data_qreg[2];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\ncz data_qreg[1], data_qreg[2];\ncz data_qreg[3], data_qreg[4];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nh data_qreg[1];\nh data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nanc_creg0[1] = measure data_qreg[1];\nanc_creg0[0] = measure data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nreset data_qreg[1];\nreset data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nh data_qreg[1];\nh data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\ncz data_qreg[1], data_qreg[0];\ncz data_qreg[3], data_qreg[2];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\ncz data_qreg[1], data_qreg[2];\ncz data_qreg[3], data_qreg[4];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nh data_qreg[1];\nh data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\nanc_creg1[1] = measure data_qreg[1];\nanc_creg1[0] = measure data_qreg[3];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\ndata_creg0[2] = measure data_qreg[0];\ndata_creg0[1] = measure data_qreg[2];\ndata_creg0[0] = measure data_qreg[4];\nbarrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n'
+        repetition_qasm_true = (
+            "OPENQASM 3.0;\n"
+            'include "stdgates.inc";\n'
+            "qubit[5] data_qreg;\n"
+            "qubit[0] anc_qreg;\n"
+            "bit[3] data_creg0;\n"
+            "bit[2] anc_creg0;\n"
+            "bit[2] anc_creg1;\n"
+            "reset data_qreg[0];\n"
+            "reset data_qreg[2];\n"
+            "reset data_qreg[4];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "reset data_qreg[1];\n"
+            "reset data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "h data_qreg[1];\n"
+            "h data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "cz data_qreg[1], data_qreg[0];\n"
+            "cz data_qreg[3], data_qreg[2];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "cz data_qreg[1], data_qreg[2];\n"
+            "cz data_qreg[3], data_qreg[4];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "h data_qreg[1];\n"
+            "h data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "anc_creg0[1] = measure data_qreg[1];\n"
+            "anc_creg0[0] = measure data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "reset data_qreg[1];\n"
+            "reset data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "h data_qreg[1];\n"
+            "h data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "cz data_qreg[1], data_qreg[0];\n"
+            "cz data_qreg[3], data_qreg[2];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "cz data_qreg[1], data_qreg[2];\n"
+            "cz data_qreg[3], data_qreg[4];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "h data_qreg[1];\n"
+            "h data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "anc_creg1[1] = measure data_qreg[1];\n"
+            "anc_creg1[0] = measure data_qreg[3];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+            "data_creg0[2] = measure data_qreg[0];\n"
+            "data_creg0[1] = measure data_qreg[2];\n"
+            "data_creg0[0] = measure data_qreg[4];\n"
+            "barrier data_qreg[0], data_qreg[1], data_qreg[2], data_qreg[3], data_qreg[4], ;\n"
+        )
 
         converted_dict = convert_circuit_to_qasm(self.final_circuit)
         repetition_qasm_converted = converted_dict["qasm_circuit"]
@@ -208,7 +261,7 @@ class TestEkaCircuitToQasmConverter(unittest.TestCase):
         generated_syndrome_mapping = converted_dict["eka_to_qasm_syndromes"]
         generated_detector_mapping = converted_dict["eka_to_qasm_detectors"]
 
-        # compare measurements from loom.eka to measurements in qasm for syndromes
+        # compare measurements from eka to measurements in qasm for syndromes
         true_meas_eka_to_meas_qasm_syndromes = {
             eka_syndrome.measurements: qasm_locs
             for eka_syndrome, qasm_locs in true_syndrome_mapping.items()
@@ -218,7 +271,7 @@ class TestEkaCircuitToQasmConverter(unittest.TestCase):
             for eka_syndrome, qasm_locs in generated_syndrome_mapping.items()
         }
 
-        # compare measurements from loom.eka to measurements in qasm for detectors
+        # compare measurements from eka to measurements in qasm for detectors
         true_meas_eka_to_meas_qasm_detectors = {
             frozenset(syn.measurements for syn in eka_detector.syndromes): qasm_locs
             for eka_detector, qasm_locs in true_detector_mapping.items()
@@ -234,3 +287,7 @@ class TestEkaCircuitToQasmConverter(unittest.TestCase):
         self.assertEqual(
             true_meas_eka_to_meas_qasm_detectors, gen_meas_eka_to_meas_qasm_detectors
         )
+
+
+if __name__ == "__main__":
+    unittest.main()

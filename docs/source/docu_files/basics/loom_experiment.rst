@@ -1,5 +1,5 @@
-Build a Quantum Correction Experiment
-======================================
+Build a Quantum Error Correction Experiment
+===========================================
 
 Loom provides a high-level abstraction dataclass, named :class:`~loom.eka.eka.Eka`, to work with the stabilizers for your quantum error correction code. The tool can be accessed via the Eka package.
 
@@ -7,7 +7,7 @@ Loom provides a high-level abstraction dataclass, named :class:`~loom.eka.eka.Ek
 
     from loom.eka import Eka
 
-The :class:`~loom.eka.eka.Eka` class takes in a three inputs — a :class:`~loom.eka.lattice.Lattice` object, a list of :class:`~loom.eka.block.Block` objects, and a list of :class:`~loom.eka.operations.base_operation.Operation` objects — and builds all of the necessary components for the experiment.
+The :class:`~loom.eka.eka.Eka` class takes in three inputs — a :class:`~loom.eka.lattice.Lattice` object, a list of :class:`~loom.eka.block.Block` objects, and a list of :class:`~loom.eka.operations.base_operation.Operation` objects — and builds all of the necessary components for the experiment.
 
 .. code-block:: python
 
@@ -87,7 +87,7 @@ To learn more about backends and interpretation, please refer to the :doc:`Run a
 ..     import loom.eka.operations.code_operation as code_op
 ..     from loom.eka import Eka
 ..     from loom.eka import Lattice
-..     from loom_rsc.code_factory import RotatedSurfaceCode   # if you have loom_rsc installed
+..     from loom_rotated_surface_code.code_factory import RotatedSurfaceCode   # if you have loom_rotated_surface_code installed
 
 ..     lattice = Lattice.square_2d((4, 4))
 ..     alpha = RotatedSurfaceCode.create(...)
