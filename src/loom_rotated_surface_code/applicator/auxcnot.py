@@ -43,14 +43,14 @@ def auxcnot(
     Apply an auxiliary CNOT operation using a Grow - Shrink - Merge - Split approach.
 
     The algorithm is the following:
-    - A) GROW CONTROL PATCH
+    - A) GROW CONTROL BLOCK
     - B) MEASURE SYNDROMES OF GROWN_CONTROL AND TARGET BLOCKS
     - C) SPLIT GROWN_CONTROL INTO CONTROL AND AUXILIARY BLOCKS
     - D) MEASURE SYNDROMES OF CONTROL, AUXILIARY AND TARGET BLOCKS
     - E) MERGE AUXILIARY AND TARGET BLOCKS
     - F) MEASURE SYNDROMES OF CONTROL AND MERGED_TARGET BLOCKS
     - G) APPLY CONDITIONALLOGICALZ CONDITIONED ON JOINT MEASUREMENT
-    - H) SHRINK THE NEW TARGET PATCH
+    - H) SHRINK THE NEW TARGET BLOCK
     - I) WRAP THE AUXCNOT CIRCUIT IN A SINGLE CIRCUIT
 
     Parameters
@@ -63,7 +63,7 @@ def auxcnot(
         Flag indicating whether the operation is part of the same timestep as the input.
     debug_mode : bool
         Flag indicating whether the interpretation should be done in debug mode.
-        Activating debug mode will enable commutation validation for Patch.
+        Activating debug mode will enable commutation validation for Block.
 
     Returns
     -------
@@ -82,7 +82,7 @@ def auxcnot(
         target=t_block,
     )
 
-    # A) GROW CONTROL PATCH
+    # A) GROW CONTROL BLOCK
     interpretation_step = auxcnot_grow_control(
         interpretation_step=interpretation_step,
         control=c_block,
@@ -175,7 +175,7 @@ def auxcnot(
         debug_mode=debug_mode,
     )
 
-    # H) SHRINK THE NEW TARGET PATCH
+    # H) SHRINK THE NEW TARGET BLOCK
     interpretation_step = auxcnot_shrink_target(
         interpretation_step=interpretation_step,
         initial_target=t_block,

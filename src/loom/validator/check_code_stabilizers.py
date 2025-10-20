@@ -91,8 +91,8 @@ class CodeStabilizerCheck(AbstractValidityCheck):
 # pylint: disable=too-many-arguments, too-many-locals, too-many-positional-arguments
 def check_code_stabilizers_output(
     base_cliffordsim_operations: tuple[Operation, ...],
-    input_patch: Block,
-    output_patch: Block,
+    input_block: Block,
+    output_block: Block,
     output_stabilizers_parity: dict[Stabilizer, tuple[str | int, ...]],
     output_stabilizers_with_any_value: list[Stabilizer],
     seed: int | None,
@@ -104,9 +104,9 @@ def check_code_stabilizers_output(
     base_cliffordsim_operations : tuple[ \
         :class:`loom.cliffordsim.operations.base_operation.Operation`, ...]
         The cliffordsim operations that represent the circuit to be checked.
-    input_patch : Block
+    input_block : Block
         The Block object that represents the input code.
-    output_patch : Block
+    output_block : Block
         The Block object that represents the output code.
     output_stabilizers_parity : list[tuple[Stabilizer, tuple[str | int, ...]]]
         A list of stabilizers that are expected to be in the output with a specific
@@ -126,15 +126,15 @@ def check_code_stabilizers_output(
         The result of the Code Stabilizer check.
     """
     all_zeros_state = LogicalState(
-        [f"+Z{i}" for i in range(input_patch.n_logical_qubits)]
+        [f"+Z{i}" for i in range(input_block.n_logical_qubits)]
     )
 
-    all_zeros_tableau = all_zeros_state.get_tableau(input_patch)
+    all_zeros_tableau = all_zeros_state.get_tableau(input_block)
     # Test conditions CodeStabilizersAltered
     # by running from initial logical state |00...0>
     # Any other logical state can be used as well, but |00...0> is the simplest choice.
     operations = (UpdateTableau(all_zeros_tableau), *base_cliffordsim_operations)
-    cliffordsim_engine = Engine(operations, input_patch.n_data_qubits, seed=seed)
+    cliffordsim_engine = Engine(operations, input_block.n_data_qubits, seed=seed)
     cliffordsim_engine.run()
     # Retrieve the output stabilizer array
     out_stab_array_np = cliffordsim_engine.tableau_w_scratch.stabilizer_array
@@ -143,7 +143,7 @@ def check_code_stabilizers_output(
     # Create dictionary to flip the parity of the stabilizers using the
     # output_stabilizer_updates
     # Initialize it with all parities being 0 for all stabilizers
-    stab_parity = {stab: 0 for stab in output_patch.stabilizers}
+    stab_parity = {stab: 0 for stab in output_block.stabilizers}
     # Update the parity of the stabilizers using the output_stabilizer_updates
     stab_parity.update(
         {
@@ -155,7 +155,7 @@ def check_code_stabilizers_output(
     # Find the stabilizers that are to be found in the output with exact values (+/-)
     output_stabilizers_with_exact_values = [
         stab
-        for stab in output_patch.stabilizers
+        for stab in output_block.stabilizers
         if stab not in output_stabilizers_with_any_value
     ]
 
@@ -165,7 +165,7 @@ def check_code_stabilizers_output(
     for stab in output_stabilizers_with_exact_values:
         # Get the stabilizer as a signed Pauli operator
         # and its flipped version based on the parity
-        stab_as_pauli_op = stab.as_signed_pauli_op(output_patch.data_qubits)
+        stab_as_pauli_op = stab.as_signed_pauli_op(output_block.data_qubits)
         stab_as_pauli_op_with_flipped_parity = stab_as_pauli_op.with_flipped_sign()
 
         # If parity is 1, swap the stabilizer with its flipped version.
@@ -193,11 +193,11 @@ def check_code_stabilizers_output(
         stab
         for stab in output_stabilizers_with_any_value
         if not is_subset_of_stabarray(
-            stab.as_signed_pauli_op(output_patch.data_qubits),
+            stab.as_signed_pauli_op(output_block.data_qubits),
             out_stab_array,
         )
         and not is_subset_of_stabarray(
-            stab.as_signed_pauli_op(output_patch.data_qubits).with_flipped_sign(),
+            stab.as_signed_pauli_op(output_block.data_qubits).with_flipped_sign(),
             out_stab_array,
         )
     ]

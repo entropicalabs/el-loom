@@ -318,7 +318,7 @@ def merge(  # pylint: disable=too-many-locals
         previous operation.
     debug_mode : bool
         Flag indicating whether the interpretation should be done in debug mode.
-        Activating debug mode will enable commutation validation for Patch.
+        Activating debug mode will enable commutation validation for Block.
 
     Returns
     -------

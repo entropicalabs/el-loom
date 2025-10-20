@@ -83,24 +83,24 @@ class TestSECValidator(unittest.TestCase):
                 )
             ],
         )
-        self.patches_to_test: list[Block] = [
+        self.blocks_to_test: list[Block] = [
             repc,
             rsc,
         ]
 
     @staticmethod
-    def get_patch_default_sec(patch: Block) -> Circuit:
+    def get_block_default_sec(block: Block) -> Circuit:
         """Given a Block object, return the default syndrome extraction circuit that
-        measures all of the stabilizers in the patch in the order in which they appear.
+        measures all of the stabilizers in the block in the order in which they appear.
         """
         # Create data qubit channels appropriately labeled
         data_qubit_to_channel_map = {
-            q: Channel("quantum", str(q)) for q in patch.data_qubits
+            q: Channel("quantum", str(q)) for q in block.data_qubits
         }
         # Create ancilla channels
         ancilla_channels = [
             Channel("quantum", str(a))
-            for stab in patch.stabilizers
+            for stab in block.stabilizers
             for a in stab.ancilla_qubits
         ]
         # Create classical channels
@@ -114,7 +114,7 @@ class TestSECValidator(unittest.TestCase):
                 + [ancilla_channels[idx]]
                 + [classical_channels[idx]]
             )
-            for idx, stab in enumerate(patch.stabilizers)
+            for idx, stab in enumerate(block.stabilizers)
         ]
 
         return Circuit(
@@ -127,8 +127,8 @@ class TestSECValidator(unittest.TestCase):
 
     def test_default(self):
         """Test that default circuits pass the tests."""
-        for patch in self.patches_to_test:
-            def_circ = self.get_patch_default_sec(patch)
+        for block in self.blocks_to_test:
+            def_circ = self.get_block_default_sec(block)
             # Get the measurement channel for every stabilizer
             # This is correct under the assumption that the default circuit
             # measures them in the order in which they appear
@@ -138,23 +138,23 @@ class TestSECValidator(unittest.TestCase):
             measurement_to_stabilizer_map = {
                 c_chan.label: stab
                 for c_chan, stab in zip(
-                    classical_channels, patch.stabilizers, strict=True
+                    classical_channels, block.stabilizers, strict=True
                 )
             }
 
             debug_data = validator.is_syndrome_extraction_circuit_valid(
-                def_circ, patch, measurement_to_stabilizer_map
+                def_circ, block, measurement_to_stabilizer_map
             )
             self.assertTrue(debug_data.valid)
 
     def test_default_add_cnot(self):
         """Test that default circuits with an added CNOT don't pass the tests."""
-        for patch in self.patches_to_test:
+        for block in self.blocks_to_test:
             # Get the default circuit and the data qubit to channel mapping
-            def_circ = self.get_patch_default_sec(patch)
+            def_circ = self.get_block_default_sec(block)
             circ_data_channels = {
                 qub: next(chan for chan in def_circ.channels if chan.label == str(qub))
-                for qub in patch.data_qubits
+                for qub in block.data_qubits
             }
             # Get the measurement channel for every stabilizer
             # This is correct under the assumption that the default circuit
@@ -165,7 +165,7 @@ class TestSECValidator(unittest.TestCase):
             measurement_to_stabilizer_map = {
                 c_chan.label: stab
                 for c_chan, stab in zip(
-                    classical_channels, patch.stabilizers, strict=True
+                    classical_channels, block.stabilizers, strict=True
                 )
             }
 
@@ -173,14 +173,14 @@ class TestSECValidator(unittest.TestCase):
             extra_op = Circuit(
                 "CNOT",
                 channels=[
-                    circ_data_channels[patch.data_qubits[0]],
-                    circ_data_channels[patch.data_qubits[1]],
+                    circ_data_channels[block.data_qubits[0]],
+                    circ_data_channels[block.data_qubits[1]],
                 ],
             )
             def_circ = Circuit(def_circ.name, def_circ.circuit + ((extra_op,),))
 
             debug_data = validator.is_syndrome_extraction_circuit_valid(
-                def_circ, patch, measurement_to_stabilizer_map
+                def_circ, block, measurement_to_stabilizer_map
             )
 
             # invalid
@@ -191,12 +191,12 @@ class TestSECValidator(unittest.TestCase):
     def test_default_add_log_operation(self):
         """Test that default circuits with an added logical operation
         don't pass the tests because only the LogicalState was altered."""
-        for patch in self.patches_to_test:
+        for block in self.blocks_to_test:
             # Get the default circuit and the data qubit to channel mapping
-            def_circ = self.get_patch_default_sec(patch)
+            def_circ = self.get_block_default_sec(block)
             circ_data_channels = {
                 qub: next(chan for chan in def_circ.channels if chan.label == str(qub))
-                for qub in patch.data_qubits
+                for qub in block.data_qubits
             }
 
             # Get the measurement channel for every stabilizer
@@ -208,12 +208,12 @@ class TestSECValidator(unittest.TestCase):
             measurement_to_stabilizer_map = {
                 c_chan.label: stab
                 for c_chan, stab in zip(
-                    classical_channels, patch.stabilizers, strict=True
+                    classical_channels, block.stabilizers, strict=True
                 )
             }
 
             # find a logical operator
-            log_operator = patch.logical_z_operators[0]
+            log_operator = block.logical_z_operators[0]
             # apply the logical operator in the end of the circuit
             # skip the first character (sign)
             extra_ops = tuple(
@@ -226,7 +226,7 @@ class TestSECValidator(unittest.TestCase):
             def_circ = Circuit(def_circ.name, def_circ.circuit + extra_ops)
 
             debug_data = validator.is_syndrome_extraction_circuit_valid(
-                def_circ, patch, measurement_to_stabilizer_map
+                def_circ, block, measurement_to_stabilizer_map
             )
 
             # make sure that it is invalid only because the logical state was altered
@@ -239,12 +239,12 @@ class TestSECValidator(unittest.TestCase):
         """Test that default circuits with an added code destabilizer operation
         don't pass the tests because only the CodeStabilizers were altered."""
         which_destab = 0
-        for patch in self.patches_to_test:
+        for block in self.blocks_to_test:
             # Get the default circuit and the data qubit to channel mapping
-            def_circ = self.get_patch_default_sec(patch)
+            def_circ = self.get_block_default_sec(block)
             circ_data_channels = {
                 qub: next(chan for chan in def_circ.channels if chan.label == str(qub))
-                for qub in patch.data_qubits
+                for qub in block.data_qubits
             }
 
             c_channels = [
@@ -255,23 +255,23 @@ class TestSECValidator(unittest.TestCase):
             # measures them in the order in which they appear
             measurement_to_stabilizer_map = {
                 c_chan.label: stab
-                for c_chan, stab in zip(c_channels, patch.stabilizers, strict=True)
+                for c_chan, stab in zip(c_channels, block.stabilizers, strict=True)
             }
 
             # find a destabilizing operator
-            destab_operator_str = str(patch.destabarray[which_destab])
+            destab_operator_str = str(block.destabarray[which_destab])
 
             # apply the destabilizer operator in the end of the circuit
             # skip the first character (sign)
             extra_ops = tuple(
-                (Circuit(p, channels=[circ_data_channels[patch.data_qubits[i]]]),)
+                (Circuit(p, channels=[circ_data_channels[block.data_qubits[i]]]),)
                 for i, p in enumerate(destab_operator_str[1:])
                 if p != "_"
             )
             def_circ = Circuit(def_circ.name, def_circ.circuit + extra_ops)
 
             debug_data = validator.is_syndrome_extraction_circuit_valid(
-                def_circ, patch, measurement_to_stabilizer_map
+                def_circ, block, measurement_to_stabilizer_map
             )
 
             # make sure that it is invalid only because the code stabilizers
@@ -287,9 +287,9 @@ class TestSECValidator(unittest.TestCase):
             # destabilized by the destabilizer with index which_destab.
             # (we need to use bookkeeping_inv to find the correct stabilizers)
             stabs_removed = tuple(
-                patch.stabilizers[idx]
-                for idx in range(len(patch.bookkeeping))
-                if patch.bookkeeping_inv[idx, which_destab]
+                block.stabilizers[idx]
+                for idx in range(len(block.bookkeeping))
+                if block.bookkeeping_inv[idx, which_destab]
             )
             self.assertEqual(
                 (
@@ -301,15 +301,15 @@ class TestSECValidator(unittest.TestCase):
     def test_multiple_stabilizer_measurement(self):
         """Test that default circuits with multiple measurements of the same stabilizer
         still pass the tests."""
-        for patch in self.patches_to_test:
+        for block in self.blocks_to_test:
             # Get the default circuit and the data qubit to channel mapping
-            def_circ = self.get_patch_default_sec(patch)
+            def_circ = self.get_block_default_sec(block)
 
             ancilla_channels = [
                 chan
                 for chan in def_circ.channels
                 if chan.type != "classical"
-                and chan.label not in [str(qub) for qub in patch.data_qubits]
+                and chan.label not in [str(qub) for qub in block.data_qubits]
             ]
             # First stabilizer measurement channels
             first_classical_channels = [
@@ -317,7 +317,7 @@ class TestSECValidator(unittest.TestCase):
             ]
             anc_channel_labels = [
                 str(a_qubit)
-                for stab in patch.stabilizers
+                for stab in block.stabilizers
                 for a_qubit in stab.ancilla_qubits
             ]
 
@@ -354,17 +354,17 @@ class TestSECValidator(unittest.TestCase):
             measurement_to_stabilizer_map = {
                 chan.label: stab
                 for chan, stab in zip(
-                    first_classical_channels, patch.stabilizers, strict=True
+                    first_classical_channels, block.stabilizers, strict=True
                 )
             } | {
                 chan.label: stab
                 for chan, stab in zip(
-                    second_classical_channels, patch.stabilizers, strict=True
+                    second_classical_channels, block.stabilizers, strict=True
                 )
             }
 
             debug_data = validator.is_syndrome_extraction_circuit_valid(
-                final_circ, patch, measurement_to_stabilizer_map
+                final_circ, block, measurement_to_stabilizer_map
             )
 
             # assert that the circuit is valid

@@ -160,7 +160,7 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
             dx=3,
             dz=7,
             lattice=Lattice.square_2d((4, 7)),
-            unique_label="big_patch",
+            unique_label="big_block",
         )
         split_op = Split("big_block_vert", ("q1", "q2"), Orientation.HORIZONTAL, 3)
         qubits_to_measure = ((0, 3, 0), (1, 3, 0), (2, 3, 0))

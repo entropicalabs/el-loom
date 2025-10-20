@@ -61,7 +61,7 @@ class RepetitionCode(Block):
             If no label is provided, a unique label is generated automatically using the
             uuid module.
         position : tuple[int, ], optional
-            Position of the top left corner of the patch on the lattice, by
+            Position of the top left corner of the block on the lattice, by
             default (0,).
         logical_x_operator: PauliOperator | None, optional
             Logical X operator. For bit-flip code, if None is provided, by default
@@ -72,7 +72,7 @@ class RepetitionCode(Block):
             the full chain of qubits is selected. For bit-flip code, if None is
             provided, by default the first qubit is selected.
         skip_validation : bool, optional
-            Skip validation of the patch object, by default False.
+            Skip validation of the block object, by default False.
 
         Returns
         -------

@@ -81,7 +81,7 @@ def state_injection(  # pylint: disable=too-many-locals
     debug_mode : bool
         Flag indicating whether the interpretation should be done in debug mode.
         Currently, the effects of debug mode are:
-        - Disabling the commutation validation of Patch
+        - Disabling the commutation validation of Block
     """
     input_block = interpretation_step.get_block(operation.input_block_name)
     init_circ_len = len(interpretation_step.intermediate_circuit_sequence)

@@ -915,14 +915,14 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         )
 
     def get_corner_from_direction(
-        self, patch: RotatedSurfaceCode, which_corner: DiagonalDirection
+        self, block: RotatedSurfaceCode, which_corner: DiagonalDirection
     ) -> tuple[int, int, int]:
         """
-        Get the coordinates of the qubit at the specified corner of the patch.
+        Get the coordinates of the qubit at the specified corner of the block.
         """
         return (
-            set(patch.boundary_qubits(which_corner.components[0]))
-            .intersection(patch.boundary_qubits(which_corner.components[1]))
+            set(block.boundary_qubits(which_corner.components[0]))
+            .intersection(block.boundary_qubits(which_corner.components[1]))
             .pop()
         )
 
@@ -931,7 +931,7 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         self,
     ) -> tuple[int, tuple[tuple[int, int, int], ...]]:
         """
-        Classify the Patch based on the geometry of its topological corners. Return the
+        Classify the Block based on the geometry of its topological corners. Return the
         config and the topological corners ordered in a specific way that reflects their
         geometric arrangement.
 
@@ -948,7 +948,7 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
                 2-------3
 
         Type 2: U-config
-                Patch has rectangular shape with size (d, 2d-1) or (2d-1, d)
+                Block has rectangular shape with size (d, 2d-1) or (2d-1, d)
                 Three of four topological corners coincide with three geometric corners,
                 the last topological corner resides on the middle of the long edge whose
                 ends occupy only one topological corner
@@ -963,7 +963,7 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
                 3-------4
 
         Type 3: L-config
-                Patch has rectangular shape with size (d, 2d-1) or (2d-1, d)
+                Block has rectangular shape with size (d, 2d-1) or (2d-1, d)
                 Three of four topological corners coincide with three geometric corners,
                 the last topological corner resides on the middle of the long edge whose
                 ends occupy two topological corners.
@@ -982,13 +982,13 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         Returns
         -------
         int:
-            The configuration type of the patch.
+            The configuration type of the block.
         tuple[tuple[int, int, int], ...]:
             The list of corners in the order specified by the configuration type.
         """
         # Find topological corners that are also geometric corners
         dx, dz = self.size
-        is_patch_horizontal = dx >= dz
+        is_block_horizontal = dx >= dz
         topological_geometric_corners = set(self.topological_corners) & set(
             self.geometric_corners
         )
@@ -1008,8 +1008,8 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
             set(self.topological_corners) - set(topological_geometric_corners)
         ).pop()
 
-        # Based on the orientation of the patch, deduce the long and short edge indices
-        long_edge_idx, short_edge_idx = (0, 1) if is_patch_horizontal else (1, 0)
+        # Based on the orientation of the block, deduce the long and short edge indices
+        long_edge_idx, short_edge_idx = (0, 1) if is_block_horizontal else (1, 0)
 
         # Find two topological-geometric corners that reside on the same long edge
         long_edge_geometric_corners = next(
