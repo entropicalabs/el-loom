@@ -1,8 +1,16 @@
 """
-Copyright (c) Entropica Labs Pte Ltd 2025.
+Copyright 2024 Entropica Labs Pte Ltd
 
-Use, distribution and reproduction of this program in its source or compiled
-form is prohibited without the express written consent of Entropica Labs Pte
-Ltd.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 """

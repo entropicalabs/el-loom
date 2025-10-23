@@ -2,7 +2,6 @@
 
 [![PyPI version](https://img.shields.io/pypi/v/el-loom.svg)](https://pypi.org/project/el-loom/)
 [![Python versions](https://img.shields.io/pypi/pyversions/el-loom.svg)](https://pypi.org/project/el-loom/)
-[![License](https://img.shields.io/pypi/l/el-loom.svg)](https://github.com/entropicalabs/el-loom/blob/main/LICENSE)
 
 > Loom is a Python library to create and run quantum error correction (QEC) experiments.
 > It provides API that allows users to easily define custom stabilizer codes and corresponding lattice surgery operations.
@@ -11,9 +10,12 @@
 Disclaimer: major breaking changes to be expected in the first month from release v0.1.0.
 
 - Website: [https://entropicalabs.com/](https://entropicalabs.com/)
-- API reference: [https://loom-docs.entropicalabs.com/](https://loom-docs.entropicalabs.com/)
+- API reference: [https://loom-api-docs.entropicalabs.com/](https://loom-api-docs.entropicalabs.com/)
+- Documentation: [https://loom-docs.entropicalabs.com/](https://loom-docs.entropicalabs.com/)
 - Bug reports: [https://github.com/entropicalabs/el-loom/issues](https://github.com/entropicalabs/el-loom/issues)
 - Support: loom-design-support@entropicalabs.com
+
+Loom is licensed under [Apache 2.0](LICENSE.md).
 
 ## ✨ Features
 
@@ -152,7 +154,7 @@ el-loom/
 
 ## 🪪 License
 
-Loom is licensed under the [Apache 2.0](LICENSE).
+Loom is licensed under [Apache 2.0](LICENSE.md).
 
 ---
 

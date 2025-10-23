@@ -1,9 +1,17 @@
 """
-Copyright (c) Entropica Labs Pte Ltd 2025.
+Copyright 2024 Entropica Labs Pte Ltd
 
-Use, distribution and reproduction of this program in its source or compiled
-form is prohibited without the express written consent of Entropica Labs Pte
-Ltd.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
 
 """
 
@@ -46,11 +54,19 @@ class CopyrightChecker(BaseRawFileChecker):
 
     copyright_msg = [
         b'"""\n',
-        b"Copyright (c) Entropica Labs Pte Ltd 2025.\n",
+        b"Copyright 2024 Entropica Labs Pte Ltd\n",
         b"\n",
-        b"Use, distribution and reproduction of this program in its source or compiled\n",
-        b"form is prohibited without the express written consent of Entropica Labs Pte\n",
-        b"Ltd.\n",
+        b'Licensed under the Apache License, Version 2.0 (the "License");\n',
+        b"you may not use this file except in compliance with the License.\n",
+        b"You may obtain a copy of the License at\n",
+        b"\n",
+        b"    http://www.apache.org/licenses/LICENSE-2.0\n",
+        b"\n",
+        b"Unless required by applicable law or agreed to in writing, software\n",
+        b'distributed under the License is distributed on an "AS IS" BASIS,\n',
+        b"WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n",
+        b"See the License for the specific language governing permissions and\n",
+        b"limitations under the License.\n",
         b"\n",
         b'"""\n',
     ]
