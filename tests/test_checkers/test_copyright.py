@@ -36,12 +36,27 @@ class TestCopyrightChecker(pylint.testutils.CheckerTestCase):
 
     mock_module = astroid.Module(name="mock_module")
     copyright_full = (
-        '"""\nCopyright (c) Entropica Labs Pte Ltd 2025.\n\n'
-        "Use, distribution and reproduction of this program in its "
-        "source or compiled\nform is prohibited without the "
-        "express written consent of Entropica Labs Pte\nLtd."
-        '\n\n"""\n'
+        '"""\nCopyright 2024 Entropica Labs Pte Ltd\n\n'
+        'Licensed under the Apache License, Version 2.0 (the "License");\n'
+        "you may not use this file except in compliance with the License.\n"
+        "You may obtain a copy of the License at\n\n"
+        "    http://www.apache.org/licenses/LICENSE-2.0\n\n"
+        "Unless required by applicable law or agreed to in writing, software\n"
+        'distributed under the License is distributed on an "AS IS" BASIS,\n'
+        "WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.\n"
+        "See the License for the specific language governing permissions and\n"
+        "limitations under the License.\n\n"
+        '"""\n'
     )
+    
+    
+    # copyright_full = (
+    #     '"""\nCopyright (c) Entropica Labs Pte Ltd 2025.\n\n'
+    #     "Use, distribution and reproduction of this program in its "
+    #     "source or compiled\nform is prohibited without the "
+    #     "express written consent of Entropica Labs Pte\nLtd."
+    #     '\n\n"""\n'
+    # )
 
     def test_missing_copyright(self):
         """Test that checker triggers when copyright message is missing."""
@@ -55,7 +70,7 @@ class TestCopyrightChecker(pylint.testutils.CheckerTestCase):
 
     def test_present_copyright_and_incorrect_copyright_spelling(self):
         """Test that checker triggers when copyright message is spelled incorrectly."""
-        misspelt_copyright = self.copyright_full.replace("distribution", "retribution")
+        misspelt_copyright = self.copyright_full.replace("Version", "Verssion")
         self.mock_module.stream = lambda: io.BytesIO(misspelt_copyright.encode())
         error_msg = pylint.testutils.MessageTest(
             msg_id="file-misspelt-copyright",
