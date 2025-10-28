@@ -31,12 +31,23 @@ from .circuit_error_model import (
     AsymmetricDepolarizeCEM,
 )
 
-from .eka_circuit_to_stim_converter import (
-    EkaCircuitToStimConverter,
-    noise_annotated_stim_circuit,
-)
-from .eka_circuit_to_qasm_converter import convert_circuit_to_qasm
-from .eka_circuit_to_pennylane_converter import convert_circuit_to_pennylane
+try:
+    from .eka_circuit_to_stim_converter import (
+        EkaCircuitToStimConverter,
+        noise_annotated_stim_circuit,
+    )
+except ModuleNotFoundError:
+    pass
+
+try:
+    from .eka_circuit_to_qasm_converter import convert_circuit_to_qasm
+except ModuleNotFoundError:
+    pass
+
+try:
+    from .eka_circuit_to_pennylane_converter import convert_circuit_to_pennylane
+except ModuleNotFoundError:
+    pass
 
 # Import the CUDAQ converter only if the cudaq package is available
 if _importlib_util.find_spec("cudaq"):
