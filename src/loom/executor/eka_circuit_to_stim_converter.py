@@ -32,7 +32,8 @@ from .circuit_error_model import ApplicationMode, CircuitErrorModel, ErrorType
 def noise_annotated_stim_circuit(
     stim_circ: StimCircuit,
     before_measure_flip_probability: float = 0,
-    after_clifford_depolarization: float = 0,
+    after_clifford_depolarization1: float = 0,
+    after_clifford_depolarization2: float = 0,
     after_reset_flip_probability: float = 0,
 ) -> StimCircuit:
     """
@@ -88,21 +89,21 @@ def noise_annotated_stim_circuit(
                 }
             ]
             annotated_ops_list = annotation + annotated_ops_list
-        if op_name in stim_one_qubit_ops and after_clifford_depolarization > 0:
+        if op_name in stim_one_qubit_ops and after_clifford_depolarization1 > 0:
             annotation = [
                 {
                     "name": "DEPOLARIZE1",
                     "targets": targets,
-                    "gate_args": [after_clifford_depolarization],
+                    "gate_args": [after_clifford_depolarization1],
                 }
             ]
             annotated_ops_list = annotated_ops_list + annotation
-        if op_name in stim_two_qubit_ops and after_clifford_depolarization > 0:
+        if op_name in stim_two_qubit_ops and after_clifford_depolarization2 > 0:
             annotation = [
                 {
                     "name": "DEPOLARIZE2",
                     "targets": targets,
-                    "gate_args": [after_clifford_depolarization],
+                    "gate_args": [after_clifford_depolarization2],
                 }
             ]
             annotated_ops_list = annotated_ops_list + annotation
@@ -275,7 +276,6 @@ class EkaCircuitToStimConverter:
             # pylint: disable=unnecessary-lambda
             sorted(eka_all_qubits, key=lambda x: eka_to_stim_coordinates(x))
         ):
-
             new_coords = eka_to_stim_coordinates(coords)
 
             # Store Loom mapping as a class attribute to be used outside this function
