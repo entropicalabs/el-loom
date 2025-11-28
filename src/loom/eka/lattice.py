@@ -24,7 +24,7 @@ import numpy as np
 
 from .utilities import (
     retrieve_field,
-    dataclass_params,
+    dataclass_config,
 )
 
 
@@ -44,7 +44,7 @@ class LatticeType(str, Enum):
     CUSTOM = "custom"
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Lattice:
     """
     A lattice object contains information about the lattice structure. The lattice

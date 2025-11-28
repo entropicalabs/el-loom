@@ -15,11 +15,9 @@ limitations under the License.
 
 """
 
-from __future__ import annotations
-
 from loom.eka import Stabilizer, Circuit
 from loom.eka.utilities import Direction, DiagonalDirection, Orientation
-from loom.interpreter import InterpretationStep
+from loom.interpreter import InterpretationStep, Cbit
 from loom.interpreter.applicator import generate_syndromes, generate_detectors
 
 from loom_rotated_surface_code.code_factory import RotatedSurfaceCode
@@ -33,6 +31,7 @@ from .utilities import (
 )
 
 
+# pylint: disable=duplicate-code
 def move_block(
     interpretation_step: InterpretationStep,
     operation: MoveBlock,
@@ -72,12 +71,19 @@ def move_block(
               to stabilizers and logical operators
         - C.4) Final measurement of the stabilizers and generation of syndromes
         - C.5) Combine all the circuits into one diagonal move circuit
+    
+    - D.) Append necessary information to the interpretation step
+    
+        - D.1) Append the circuit to the interpretation step
+        - D.2) Update the block history and evolution
+        - D.3) Create and append the new syndromes and detectors
 
     - Repeat steps A, B, C for the second diagonal direction.
-    - D.) Final circuit
 
-        - D.1) Combine the two diagonal move circuits into one circuit and append to the
-                interpretation step.
+    - E.) Final Circuit
+        - E.1) Wrap the generated circuits into a single circuit representing the full \
+            MoveBlock operation.
+
 
     If the block is moved to the top:
 
@@ -156,6 +162,9 @@ def move_block(
     """
     block = interpretation_step.get_block(operation.input_block_name)
 
+    # Begin composite operation
+    init_circ_len = len(interpretation_step.intermediate_circuit_sequence)
+
     # Find occupied qubits from other blocks in the latest timeslice
     other_blocks = [
         each_block
@@ -169,30 +178,41 @@ def move_block(
     # Decompose the direction into 2 diagonal directions
     decomposed_directions = composite_direction(operation.direction)
 
-    circuits = []
     current_block = block
     for diag_direction in decomposed_directions:
-        # A) - VALID MOVE CHECK
+        # A) - Valid move check
         # A.1) Check if the qubits required for the block to be moved are available.
         check_valid_move(occupied_qubits, current_block.qubits, diag_direction)
 
-        # B, C, D) - MOVE THE BLOCK DIAGONALLY VIA SWAP-QEC
-        new_block, circ = move_block_diagonally_via_swap_qec(
+        # B, C, D) - Move the block diagonally via swap-QEC
+        interpretation_step = move_block_diagonally_via_swap_qec(
             interpretation_step, current_block, diag_direction, debug_mode
         )
 
         # Prepare for the next iteration
-        current_block = new_block
-        circuits.append(circ)
+        current_block = interpretation_step.get_block(operation.input_block_name)
 
-    # E) - COMBINE AND APPEND THE CIRCUITS
-    interpretation_step.append_circuit_MUT(
-        Circuit(
-            f"Move block {block.unique_label} towards {operation.direction.value}",
-            circuit=circuits,
-        ),
-        same_timeslice=same_timeslice,
+    # E) Final Circuit
+    # E.1) Wrap the generated circuits into a single circuit representing the full
+    # MoveBlock operation.
+    new_len = len(interpretation_step.intermediate_circuit_sequence)
+    len_op = new_len - init_circ_len
+    circuit_seq = interpretation_step.pop_intermediate_circuit_MUT(len_op)
+
+    wrapped_circuit_seq = ()
+    for timeslice in circuit_seq:
+        timespan = max(composite_circuit.duration for composite_circuit in timeslice)
+        # Create a circuit with empty timeslices and align circuits
+        template_circ = (
+            tuple(composite_circuit for composite_circuit in timeslice),
+        ) + ((),) * (timespan - 1)
+        wrapped_circuit_seq += template_circ
+
+    wrapped_circuit = Circuit(
+        name=(f"Move block {block.unique_label} towards {operation.direction.value}"),
+        circuit=wrapped_circuit_seq,
     )
+    interpretation_step.append_circuit_MUT(wrapped_circuit, same_timeslice)
 
     return interpretation_step
 
@@ -202,7 +222,7 @@ def move_block_diagonally_via_swap_qec(
     current_block: RotatedSurfaceCode,
     diag_direction: Direction,
     debug_mode: bool,
-) -> tuple[RotatedSurfaceCode, Circuit]:
+) -> InterpretationStep:
     """
     Moves the block diagonally in the specified direction using a swap-then-qec
     procedure.
@@ -223,25 +243,20 @@ def move_block_diagonally_via_swap_qec(
         The new block after the move and the circuit that performs the move.
     """
 
-    # B) - SHIFT THE BLOCK
+    # B) - Shift the block
     # B.1) Shift the block in the specified direction
     new_block, stab_ev, logx_ev, logz_ev = shift_block_towards_direction(
         current_block, diag_direction, debug_mode=debug_mode
     )
 
-    # B.2) Update the block history and evolution
-    interpretation_step.update_block_history_and_evolution_MUT(
-        (new_block,), (current_block,)
-    )
-
-    # B.3) Update all the evolutions
+    # B.2) Update all the evolutions
     # Stabilizer evolution
     interpretation_step.stabilizer_evolution.update(stab_ev)
     # Logical operator evolution
     interpretation_step.logical_x_evolution.update(logx_ev)
     interpretation_step.logical_z_evolution.update(logz_ev)
 
-    # B.4) Propagate all the updates
+    # B.3) Propagate all the updates
     # Stabilizer updates
     for new_stab_uuid, old_stab_uuids in stab_ev.items():
         propagated_updates = ()
@@ -305,9 +320,11 @@ def move_block_diagonally_via_swap_qec(
     )
 
     # C.4) Final measurement of the stabilizers and generation of syndromes
-    syndrome_meas = generate_syndrome_measurement_operations_and_syndromes(
-        interpretation_step,
-        new_block,
+    syndrome_meas_circ, stab_measurements = (
+        generate_syndrome_measurement_circuit_and_cbits(
+            interpretation_step,
+            new_block,
+        )
     )
 
     # C.5) Combine all the circuits into one diagonal move circuit
@@ -317,12 +334,29 @@ def move_block_diagonally_via_swap_qec(
             [
                 (reset_basis_circuit,),
                 (cnots_circuit,),
-                (tp_finalization, syndrome_meas),
+                (tp_finalization, syndrome_meas_circ),
             ]
         ),
     )
 
-    return new_block, circ
+    # D) - APPEND NECESSARY INFORMATION TO THE INTERPRETATION STEP
+    # D.1) Append the circuit to the interpretation step
+    interpretation_step.append_circuit_MUT(circ, same_timeslice=False)
+
+    # D.2) Update the block history and evolution
+    interpretation_step.update_block_history_and_evolution_MUT(
+        (new_block,), (current_block,)
+    )
+
+    # D.3) Create and append the new syndromes and detectors
+    # Create all new syndromes
+    generate_and_append_block_syndromes_and_detectors(
+        interpretation_step=interpretation_step,
+        block=new_block,
+        syndrome_measurement_cbits=stab_measurements,
+    )
+
+    return interpretation_step
 
 
 def check_valid_move(
@@ -378,11 +412,6 @@ def composite_direction(
     However, the actual movement of the block is done via 2 diagonal directions. This
     function returns a tuple of 2 sets of directions based on the user-defined
     direction.
-
-    TODO: Provide option for the user to specify the 2 diagonal directions.
-
-    TODO: Adaptively choose the 2 diagonal directions based on the which directions pass
-    the valid move check.
 
     For e.g.
     If the user specifies "right", the actual movement involves qubits moving to the
@@ -759,21 +788,22 @@ def get_swap_qec_cnots(
     return swap_then_qec_cnots
 
 
-def generate_syndrome_measurement_operations_and_syndromes(
+def generate_syndrome_measurement_circuit_and_cbits(
     interpretation_step: InterpretationStep,
-    new_block: RotatedSurfaceCode,
+    block: RotatedSurfaceCode,
     actual_anc_qubit_relocation_vector: tuple[int, ...] = (0, 0, 0),
-) -> Circuit:
-    """Generate the circuit that measures the stabilizers of the block and creates the
-    corresponding syndromes. Then append the syndromes to the interpretation step.
+) -> tuple[Circuit, list[tuple[Cbit, ...]]]:
+    """
+    Generate and return the circuit that measures the stabilizers of the block and
+    the list of stabilizer measurements as tuples of Cbits.
 
     Parameters
     ----------
     interpretation_step : InterpretationStep
         The interpretation step. Note that it may be mutated by generating new
         channels.
-    new_block : RotatedSurfaceCode
-        The new block after the operation.
+    block : RotatedSurfaceCode
+        The block whose stabilizers are to be measured.
     actual_anc_qubit_relocation_vector : tuple[int, ...], optional
         The vector to the actual ancilla qubit, by default (0, 0, 0)
 
@@ -781,15 +811,18 @@ def generate_syndrome_measurement_operations_and_syndromes(
     -------
     Circuit
         The circuit that performs the measurement of the stabilizers of the block.
-        Note that it's just the final measurement operations and not the full the
+        Note that it's just the final measurement operations and not the full
         stabilizer measurement circuit.
+    list[tuple[Cbit, ...]]
+        The list of stabilizer measurements as tuples of Cbits. The order of the list
+        corresponds to the order of the stabilizers in block.stabilizers.
     """
 
     # Initialize the list of circuits
     stab_measurements = []
     meas_circ_seq = [[]]
     # Find the vector to the actual ancilla qubit
-    for stab in new_block.stabilizers:
+    for stab in block.stabilizers:
         # Find the data qubit containing the syndrome
         actual_anc_qubit = tuple(
             map(
@@ -818,27 +851,46 @@ def generate_syndrome_measurement_operations_and_syndromes(
         # Append the circuit to the list
         meas_circ_seq[0].append(m_circ)
 
-    # Create all new syndromes
-    new_syndromes = generate_syndromes(
-        interpretation_step=interpretation_step,
-        stabilizers=new_block.stabilizers,
-        block=new_block,
-        stab_measurements=stab_measurements,
-    )
-    # Generate the new detectors for the new syndromes
-    new_detectors = generate_detectors(interpretation_step, new_syndromes)
-
-    # Append the syndromes and detectors to the interpretation step
-    interpretation_step.append_syndromes_MUT(new_syndromes)
-    interpretation_step.append_detectors_MUT(new_detectors)
-
     # Compile the stabilizer measurement circuit
     stab_meas_circ = Circuit(
-        "Measure stabilizers with ancillas on lattice 0",
+        "measure stabilizer ancillas",
         circuit=meas_circ_seq,
     )
 
-    return stab_meas_circ
+    return stab_meas_circ, stab_measurements
+
+
+def generate_and_append_block_syndromes_and_detectors(
+    interpretation_step: InterpretationStep,
+    block: RotatedSurfaceCode,
+    syndrome_measurement_cbits: list[tuple[Cbit, ...]],
+) -> None:
+    """Generate and append syndromes and detectors to the interpretation step.
+
+    NOTE: This should probably be made into a method of InterpretationStep.
+
+    Parameters
+    ----------
+    interpretation_step : InterpretationStep
+        The interpretation step. Note that it may be mutated by generating new
+        channels.
+    block : RotatedSurfaceCode
+        The block to which the operation will be applied.
+    syndrome_measurement_cbits : list[tuple[Cbit, ...]]
+        The list of syndrome measurement classical bits. It has to correspond to the
+        stabilizers of the block.
+    """
+    new_syndromes = generate_syndromes(
+        interpretation_step=interpretation_step,
+        stabilizers=block.stabilizers,
+        block=block,
+        stab_measurements=syndrome_measurement_cbits,
+    )
+    # Generate the new detectors for the new syndromes
+    new_detectors = generate_detectors(interpretation_step, new_syndromes)
+    # Append the syndromes and detectors to the interpretation step
+    interpretation_step.append_syndromes_MUT(new_syndromes)
+    interpretation_step.append_detectors_MUT(new_detectors)
 
 
 def generate_teleportation_measurement_circuit_with_updates(

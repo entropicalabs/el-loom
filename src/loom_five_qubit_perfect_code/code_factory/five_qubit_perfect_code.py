@@ -33,10 +33,10 @@ from loom.eka import (
     Circuit,
     Channel,
 )
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class FiveQubitPerfectCode(Block):
     """
     Represents the five qubit perfect code, also known as the

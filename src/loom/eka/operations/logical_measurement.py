@@ -18,10 +18,10 @@ limitations under the License.
 from __future__ import annotations
 from functools import cached_property
 from pydantic.dataclasses import dataclass
-from ..utilities import dataclass_params
+from ..utilities import dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalMeasurement:
     """
     LogicalMeasurement acts as a wrapper to describe the type of logical measurement

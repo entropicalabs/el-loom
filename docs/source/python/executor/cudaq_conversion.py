@@ -1,3 +1,5 @@
+from loom.executor import EkaToCudaqConverter
+
 converter = EkaToCudaqConverter()
 
 # interpreted_eka: InterpretationStep

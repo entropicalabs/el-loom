@@ -23,13 +23,13 @@ from pydantic import field_validator, model_validator, Field
 from .pauli_operator import PauliOperator
 from .utilities.validation_tools import (
     distinct_error,
-    dataclass_params,
+    dataclass_config,
     ensure_tuple,
     coordinate_length_error,
 )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Stabilizer(PauliOperator):
     """
     A stabilizer, representing the parity of a set of data qubits in the basis as

@@ -23,7 +23,7 @@ from pydantic import Field, field_validator, ValidationInfo
 from pydantic.dataclasses import dataclass
 
 from .utilities.validation_tools import (
-    dataclass_params,
+    dataclass_config,
     uuid_error,
     ValidationInfo,
 )
@@ -63,7 +63,7 @@ def create_default_label(channel_type: ChannelType):
             raise ValueError(f"Channel type {type} not recognized")
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Channel:
     """
     Identifies information channels connecting the Circuit elements: examples are

@@ -28,13 +28,6 @@ class TestSECValidator(unittest.TestCase):
     """
 
     def setUp(self):
-        # RepetitionCode.create(3, "Z", Lattice.linear()),
-        # RepetitionCode.create(3, "X", Lattice.linear()),
-        # RotatedSurfaceCode.create(3, 3, Lattice.square_2d()),
-        # SteaneCode.create(Lattice.square_2d()),
-        # BivariateBicycleCode.create(
-        #     (3, 3), [(0, 0), (1, 0), (1, 2)], [(0, 0), (0, 1), (2, 1)]
-        # ),
         repc = Block(
             unique_label="q1",
             stabilizers=tuple(

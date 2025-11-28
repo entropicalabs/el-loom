@@ -17,10 +17,10 @@ limitations under the License.
 
 from pydantic.dataclasses import dataclass
 from .base_operation import Operation
-from ..utilities import SingleQubitPauliEigenstate, dataclass_params
+from ..utilities import SingleQubitPauliEigenstate, dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalOperation(Operation):
     """
     Parent class for all logical operations in the Eka. All logical operations acts
@@ -34,7 +34,7 @@ class LogicalOperation(Operation):
     """
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Reset(LogicalOperation):
     """
     Reset a logical qubit to one of the supported states.
@@ -51,7 +51,7 @@ class Reset(LogicalOperation):
     state: SingleQubitPauliEigenstate
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class CNOT(LogicalOperation):
     """
     Describes a CNOT gate between two logical qubits.
@@ -68,7 +68,7 @@ class CNOT(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Hadamard(LogicalOperation):
     """
     Describes a Hadamard gate on a logical qubit.
@@ -82,7 +82,7 @@ class Hadamard(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Phase(LogicalOperation):
     """
     Describes a Phase gate on a logical qubit.
@@ -96,7 +96,7 @@ class Phase(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class PhaseInverse(LogicalOperation):
     """
     Describes an inverse Phase gate on a logical qubit.
@@ -110,7 +110,7 @@ class PhaseInverse(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class X(LogicalOperation):
     """
     Describes an X gate on a logical qubit.
@@ -124,7 +124,7 @@ class X(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Y(LogicalOperation):
     """
     Describes a Y gate on a logical qubit.
@@ -138,7 +138,7 @@ class Y(LogicalOperation):
     target_qubit: str
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Z(LogicalOperation):
     """
     Describes a Z gate on a logical qubit.
@@ -153,7 +153,7 @@ class Z(LogicalOperation):
 
 
 # what about non-Clifford gates?
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class T(LogicalOperation):
     """
     Describes a T gate on a logical qubit.

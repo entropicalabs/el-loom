@@ -28,13 +28,13 @@ from ..utilities import (
     Direction,
     Orientation,
     ResourceState,
-    dataclass_params,
+    dataclass_config,
     larger_than_zero_error,
 )
 
 
 # CodeOperation act on the code itself
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class CodeOperation(Operation):
     """
     Parent class for all code operations. All code operations act on blocks
@@ -84,7 +84,7 @@ class CodeOperation(Operation):
 
 
 # Readout operations
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureBlockSyndromes(CodeOperation):
     """
     Performs a given number of rounds of syndrome measurements on a block.
@@ -101,7 +101,7 @@ class MeasureBlockSyndromes(CodeOperation):
     n_cycles: int = 1
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureLogicalX(CodeOperation):
     """
     Measure the logical X operator of a block.
@@ -121,7 +121,7 @@ class MeasureLogicalX(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureLogicalZ(CodeOperation):
     """
     Measure the logical Z operator of a block.
@@ -141,7 +141,7 @@ class MeasureLogicalZ(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureLogicalY(CodeOperation):
     """
     Measure the logical Y operator of a block.
@@ -161,7 +161,7 @@ class MeasureLogicalY(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalX(CodeOperation):
     """
     Apply a logical X operator to a block.
@@ -181,7 +181,7 @@ class LogicalX(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalY(CodeOperation):
     """
     Apply a logical Y operator to a block.
@@ -201,7 +201,7 @@ class LogicalY(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalZ(CodeOperation):
     """
     Apply a logical Z operator to a block.
@@ -221,7 +221,7 @@ class LogicalZ(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ResetAllDataQubits(CodeOperation):
     """
     Reset all data qubits to a specific SingleQubitPauliEigenstate.
@@ -238,7 +238,7 @@ class ResetAllDataQubits(CodeOperation):
     state: SingleQubitPauliEigenstate = Field(default=SingleQubitPauliEigenstate.ZERO)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ResetAllAncillaQubits(CodeOperation):
     """
     Reset all ancilla qubits to a specific SingleQubitPauliEigenstate.
@@ -257,7 +257,7 @@ class ResetAllAncillaQubits(CodeOperation):
     state: SingleQubitPauliEigenstate = Field(default=SingleQubitPauliEigenstate.ZERO)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Grow(CodeOperation):
     """
     Grow operation.
@@ -281,7 +281,7 @@ class Grow(CodeOperation):
     )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Shrink(CodeOperation):
     """
     Shrink operation.
@@ -304,7 +304,7 @@ class Shrink(CodeOperation):
     )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Merge(CodeOperation):
     """
     Merge operation.
@@ -326,7 +326,7 @@ class Merge(CodeOperation):
     orientation: Orientation | None = Field(default=None, validate_default=True)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Split(CodeOperation):
     """
     Split operation.
@@ -354,7 +354,7 @@ class Split(CodeOperation):
     )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class StateInjection(CodeOperation):
     """
     Inject the given resource state into the specified block. This operation resets the
@@ -382,7 +382,7 @@ class StateInjection(CodeOperation):
     resource_state: ResourceState
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ConditionalLogicalX(CodeOperation):
     """
     Apply a conditional logical X operator to a block.
@@ -406,7 +406,7 @@ class ConditionalLogicalX(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ConditionalLogicalY(CodeOperation):
     """
     Apply a conditional logical Y operator to a block.
@@ -430,7 +430,7 @@ class ConditionalLogicalY(CodeOperation):
     logical_qubit: int = Field(default=0)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ConditionalLogicalZ(CodeOperation):
     """
     Apply a conditional logical Z operator to a block.

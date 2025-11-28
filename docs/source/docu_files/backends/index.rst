@@ -24,14 +24,14 @@ Stim
 
 Pennylane
 ---------
-`Pennylane <https://github.com/PennyLaneAI/pennylane>`_ is an open-source python framework for quantum programming built by Xanadu. Loom experiments can be converted to a format that is compatible with Pennylane's simulators using :meth:`~loom.executor.eka_circuit_to_pennylane_converter.convert_circuit_to_pennylane`. The output format can also be used for Pennylane's catalyst simulator via the `is_catalyst` input boolean. Note that in order to use this exector with loom, you are required to have had installed :mod:`pennylane` and :mod:`catalyst` beforehand. We recommend getting `pennylane-catalyst` version `0.13.0`:
+`Pennylane <https://github.com/PennyLaneAI/pennylane>`_ is an open-source python framework for quantum programming built by Xanadu. Loom experiments can be converted to a format that is compatible with Pennylane's simulators using :meth:`~loom.executor.eka_circuit_to_pennylane_converter.convert_circuit_to_pennylane`. The output format can also be used for Pennylane's catalyst simulator via the ``is_catalyst`` input boolean. Note that in order to use this exector with loom, you are required to have had installed :mod:`pennylane` and :mod:`catalyst` beforehand. We recommend getting :mod:`pennylane-catalyst` version `0.13.0`:
 
 .. literalinclude:: ../../python/executor/pennylane_conversion.py
    :language: python
 
 Cudaq
 -----
-`CudaQ <https://github.com/NVIDIA/cuda-quantum>`_ is an open-source quantum development platform for the orchestration of software and hardware resources designed for large-scale quanatum computing applications built by Nvidia. Loom experiments can be converted to a format that is compatible with the cudaq simulators using :class:`~loom.executor.eka_circuit_to_cudaq_converter.EkaToCudaqConverter`. Note that in order to use this executor with loom, you are required to have had installed :mod:`cudaq` beforehand. We recommend getting `cudaq` and `cuda-quantum-cu12` at version `0.12.0`.:
+`CudaQ <https://github.com/NVIDIA/cuda-quantum>`_ is an open-source quantum development platform for the orchestration of software and hardware resources designed for large-scale quantum computing applications built by Nvidia. Loom experiments can be converted to a format that is compatible with the cudaq simulators using :class:`~loom.executor.eka_circuit_to_cudaq_converter.EkaToCudaqConverter`. Note that in order to use this executor with loom, you are required to have had installed :mod:`cudaq` beforehand. We recommend getting :mod:`cudaq` and :mod:`cuda-quantum-cu12` at version `0.12.0`:
 
 .. literalinclude:: ../../python/executor/cudaq_conversion.py
    :language: python

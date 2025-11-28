@@ -23,7 +23,10 @@ from loom.interpreter.applicator import measureblocksyndromes
 from loom.interpreter import InterpretationStep
 
 from loom_rotated_surface_code.code_factory import RotatedSurfaceCode
-from .utilities import generate_syndrome_extraction_circuits
+from .utilities import (
+    generate_syndrome_extraction_circuits,
+    find_relative_diagonal_direction,
+)
 
 
 def move_corners(
@@ -338,16 +341,14 @@ def move_corner(  # pylint: disable=too-many-locals, too-many-statements
     # towards the move boundary in the next move corner to ensure fault-tolerance
     config, pivot_corners = mock_block.config_and_pivot_corners
     starting_diag_direction = DiagonalDirection.TOP_RIGHT
-    if config in (2, 3):
+    if config in (2, 3, 4):
         # Type 2 and 3 (U and L)
         # Extract geometry information
         is_move_direction_horizontal = (
             move_direction.to_orientation() == Orientation.HORIZONTAL
         )
-        is_long_edge_horizontal = mock_block.size[0] > mock_block.size[1]
-        is_move_direction_long_edge = (
-            is_move_direction_horizontal == is_long_edge_horizontal
-        )
+        is_horizontal = mock_block.is_horizontal
+        is_move_direction_long_edge = is_move_direction_horizontal == is_horizontal
         long_end_corner = pivot_corners[0]
         short_end_corner = pivot_corners[3]
 
@@ -356,19 +357,8 @@ def move_corner(  # pylint: disable=too-many-locals, too-many-statements
         compare_corner = (
             long_end_corner if is_move_direction_long_edge else short_end_corner
         )
-
-        hor_direction = (
-            Direction.RIGHT
-            if compare_corner[0] > top_left_corner[0]
-            else Direction.LEFT
-        )
-        vert_direction = (
-            Direction.BOTTOM
-            if compare_corner[1] > top_left_corner[1]
-            else Direction.TOP
-        )
-        starting_diag_direction = DiagonalDirection.from_directions(
-            (hor_direction, vert_direction)
+        starting_diag_direction = find_relative_diagonal_direction(
+            top_left_corner, compare_corner
         )
 
     #   C.2) Find syndrome circuits using the mock block

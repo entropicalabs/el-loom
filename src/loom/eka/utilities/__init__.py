@@ -21,6 +21,7 @@ from .enums import (
     Orientation,
     ResourceState,
     DiagonalDirection,
+    BoolOp,
 )
 from .exceptions import SyndromeMissingError, AntiCommutationError
 from .graph_matrix_utils import (
@@ -75,6 +76,6 @@ from .tableau import is_tableau_valid, tableau_generates_pauli_group
 from .validation_tools import (
     uuid_error,
     retrieve_field,
-    dataclass_params,
+    dataclass_config,
     larger_than_zero_error,
 )

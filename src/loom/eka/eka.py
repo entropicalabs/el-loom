@@ -24,10 +24,10 @@ from pydantic.dataclasses import dataclass
 from .block import Block
 from .lattice import Lattice
 from .operations import Operation
-from .utilities.validation_tools import dataclass_params
+from .utilities.validation_tools import dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Eka:
     # pylint: disable=line-too-long
     """
@@ -98,8 +98,6 @@ class Eka:
                         f"Block '{block.unique_label}' has ancilla qubit indices which "
                         "are too large for the lattice."
                     )
-
-        # TODO: Add checks for ancilla qubits
 
         return blocks
 

@@ -28,11 +28,11 @@ from loom.eka import (
     Stabilizer,
 )
 
-from loom.eka.utilities import Direction, dataclass_params
+from loom.eka.utilities import Direction, dataclass_config
 
 
 # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-branches
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class RepetitionCode(Block):
     """
     A sub-class of `Block` that represents a repetition code block.

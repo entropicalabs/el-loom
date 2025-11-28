@@ -15,6 +15,9 @@ limitations under the License.
 
 """
 
+# pylint: disable=too-many-lines
+from itertools import compress
+
 from pydantic.dataclasses import dataclass
 from pydantic import Field
 
@@ -28,7 +31,8 @@ from loom.eka.operations import LogicalMeasurement
 from .syndrome import Syndrome
 from .detector import Detector
 from .logical_observable import LogicalObservable
-from .utilities import Cbit
+from .block_history import BlockHistory
+from .utilities import Cbit, CompositeOperationSession
 
 
 def check_frozen(func):
@@ -89,6 +93,14 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         tuple of blocks is added to this `block_history` field. While mostly only the
         last configuration of blocks is relevant, the whole history is stored which
         might be useful for plotting.
+    block_history_new : BlockHistory
+        A `BlockHistory` object which keeps track of the block UUIDs present at every
+        timestamp.
+    block_registry : dict[str, Block]
+        A dictionary storing all Block objects which have been created during the
+        interpretation. The keys are the UUIDs of the blocks. This is used to retrieve
+        block objects based on their UUIDs which are stored in the `block_history_new`
+        field.
     syndromes : tuple[Syndrome, ...]
         A tuple of `Syndrome`s which are created due to all syndrome extraction cycles
         up to the `Operation` which is currently interpreted.
@@ -188,6 +200,14 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         qubit coordinates or the Cbit tuple). The values are the `Channel` objects.
         Only one Channel is created per qubit. Measurements are associated to individual
         channels. I.e. for every Cbit, there is a separate Channel object.
+    composite_operation_session_stack : list[CompositeOperationSession]
+        A stack of composite operation sessions which are currently open. Every time a
+        composite operation is started, a new session is created and added to this
+        stack. When the composite operation is ended, the session is removed from the
+        stack.
+    timeslice_durations : list[int]
+        A list storing the duration of each timeslice in the
+        `intermediate_circuit_sequence` field.
     is_frozen : bool
         A boolean flag, indicating whether the `InterpretationStep` is frozen. If it is
         set to True (frozen), calling methods which mutate the `InterpretationStep` will
@@ -202,6 +222,10 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     )
     block_history: tuple[tuple[Block, ...], ...] = Field(
         default_factory=tuple, validate_default=True
+    )
+    block_history_new: BlockHistory = Field(init=False)
+    block_registry: dict[str, Block] = Field(
+        default_factory=dict, validate_default=True, init=False
     )
     syndromes: tuple[Syndrome, ...] = Field(
         default_factory=tuple, validate_default=True
@@ -246,7 +270,23 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     logical_measurements: dict[LogicalMeasurement, tuple[Cbit, ...]] = Field(
         default_factory=dict, validate_default=True
     )
+    composite_operation_session_stack: list[CompositeOperationSession] = Field(
+        default_factory=list, validate_default=True, init=False
+    )
+    timeslice_durations: list[int] = Field(
+        default_factory=list, validate_default=True, init=False
+    )
     is_frozen: bool = False
+
+    def __post_init__(self):
+        # Initialize block_registry and block_history_new
+        initial_blocks = self.block_history[-1] if self.block_history else ()
+        # Set the block_registry dictionaries based on
+        # initial_blocks
+        self.block_registry = {block.uuid: block for block in initial_blocks}
+        self.block_history_new = BlockHistory.create(
+            set(block.uuid for block in initial_blocks)
+        )
 
     def get_block(self, label: str) -> Block:
         """
@@ -274,7 +314,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         self,
         new_blocks: tuple[Block, ...] = tuple(),
         old_blocks: tuple[Block, ...] = tuple(),
-        update_evolution: bool = True,  # pylint: disable=unused-argument
+        update_evolution: bool = True,
     ) -> None:
         """
         Update the block history and the block evolution with the new blocks and
@@ -286,7 +326,9 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         detector generation).
 
         NOTE: This function has side effects on the current InterpretationStep! The
-        `block_history` and `block_evolution` fields are updated.
+        `block_history`, `block_evolution`, `block_registry`,and `block_history_new`
+        fields are updated.
+
 
         Parameters
         ----------
@@ -315,7 +357,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
                 )
 
         # Update block evolution
-        if old_blocks and new_blocks:
+        if old_blocks and new_blocks and update_evolution:
             self.block_evolution.update(
                 {
                     new_block.uuid: tuple(block.uuid for block in old_blocks)
@@ -332,6 +374,15 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
             + new_blocks
         )
         self.block_history += (new_state_of_blocks,)
+
+        # Update BlockHistory object
+        self.block_history_new.update_blocks(
+            timestamp=self.get_timestamp(),
+            old_blocks=set(block.uuid for block in old_blocks),
+            new_blocks=set(block.uuid for block in new_blocks),
+        )
+        # Update block_registry dictionary
+        self.block_registry |= {block.uuid: block for block in new_blocks}
 
     @check_frozen
     def update_logical_operator_updates_MUT(  # pylint: disable=invalid-name
@@ -440,7 +491,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         Append a circuit to the current circuit.
 
         NOTE: This function has side effects on the current InterpretationStep! The
-        `intermediate_circuit_sequence` field is updated.
+        `intermediate_circuit_sequence` and `timeslice_durations` fields are updated.
 
         Parameters
         ----------
@@ -456,6 +507,23 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
                 f"Type {type(circuit)} not supported for circuit field. The circuit"
                 f" must be a Circuit object"
             )
+
+        # Validation: If there is an open composite operation session, the first circuit
+        # of the session cannot be added to the same timeslice as the previous circuit
+        first_circuit_of_composite_operations = [
+            session
+            for session in self.composite_operation_session_stack
+            if session.start_timeslice_index == len(self.intermediate_circuit_sequence)
+        ]
+        if same_timeslice and first_circuit_of_composite_operations:
+            raise ValueError(
+                "The first circuit of a composite operation session cannot be "
+                "added to the same timeslice as the previous circuit. Please set "
+                "same_timeslice to False for the first circuit of composite operation "
+                "with circuit name "
+                f"'{first_circuit_of_composite_operations[-1].circuit_name}'."
+            )
+
         # Append the new circuit to intermediate_circuit_sequence
         if same_timeslice and len(self.intermediate_circuit_sequence) > 0:
             existing_channels = [
@@ -473,10 +541,16 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
             self.intermediate_circuit_sequence = self.intermediate_circuit_sequence[
                 :-1
             ] + (self.intermediate_circuit_sequence[-1] + (circuit,),)
+            # Update the timeslice duration if needed
+            self.timeslice_durations[-1] = max(
+                self.timeslice_durations[-1], circuit.duration
+            )
         else:
             self.intermediate_circuit_sequence += (
                 (circuit,),
             )  # Add the circuit as a single timeslice
+            # Append the duration of the new timeslice
+            self.timeslice_durations.append(circuit.duration)
 
     @check_frozen
     def pop_intermediate_circuit_MUT(  # pylint: disable=invalid-name
@@ -507,8 +581,204 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         self.intermediate_circuit_sequence = self.intermediate_circuit_sequence[
             :-length
         ]
-
+        # Also remove the durations of the popped timeslices
+        self.timeslice_durations = self.timeslice_durations[:-length]
         return popped_circuits
+
+    @check_frozen
+    def begin_composite_operation_session_MUT(  # pylint: disable=invalid-name
+        self, same_timeslice: bool, circuit_name: str
+    ) -> None:
+        """
+        Marks the beginning of a composite operation in the interpretation step.
+
+        NOTE: This function has side effects on the current InterpretationStep! The
+        `composite_operation_session_stack` field is updated.
+
+        Parameters
+        ----------
+        same_timeslice : bool
+            If True, the composite operation will be appended to the last timeslice.
+        circuit_name : str
+            Name for the wrapped composite circuit.
+
+        Examples
+        --------
+        Below is an example of how to use the composite operation session methods:
+
+        .. code-block:: python
+
+            # Beginning of composite operation applicator:
+            interpretation_step.begin_composite_operation_session_MUT(
+                same_timeslice=same_timeslice,
+                circuit_name="composite_op_circuit_name",
+            )
+
+            # Main body of composite operation applicator
+            ...
+
+            # Before exiting the composite operation applicator:
+            circuit = interpretation_step.end_composite_operation_session_MUT()
+            interpretation_step.append_circuit_MUT(
+                circuit,
+                same_timeslice=same_timeslice,
+            )
+        """
+        # Create a new session and add it to the composite operation stack
+        session = CompositeOperationSession(
+            start_timeslice_index=len(self.intermediate_circuit_sequence),
+            same_timeslice=same_timeslice,
+            circuit_name=circuit_name,
+        )
+        self.composite_operation_session_stack.append(session)
+
+    @check_frozen
+    def end_composite_operation_session_MUT(  # pylint: disable=invalid-name
+        self,
+    ) -> Circuit:
+        """
+        Marks the end of a composite operation in the interpretation step.
+
+        NOTE: This function has side effects on the current InterpretationStep! The
+        `composite_operation_session_stack`, `intermediate_circuit_sequence`, and
+        `timeslice_durations` fields are updated.
+
+        NOTE: It is advised to always follow this function call with an
+        `append_circuit_MUT` call to add the returned circuit back to the intermediate
+        circuit sequence.
+
+        Returns
+        -------
+        Circuit
+            The wrapped composite circuit.
+
+        Examples
+        --------
+        Refer to the examples in the `begin_composite_operation_session_MUT` method.
+        """
+        # Validate that there is a session to end and it matches the most recent one
+        if not self.composite_operation_session_stack:
+            raise ValueError(
+                "No composite operation session to end. Please begin a session first."
+            )
+
+        # Pop a session from the stack
+        session = self.composite_operation_session_stack.pop()
+
+        # Extract the circuit sequence for the composite operation
+        operation_length = (
+            len(self.intermediate_circuit_sequence) - session.start_timeslice_index
+        )
+        circuit_sequence = self.pop_intermediate_circuit_MUT(operation_length)
+
+        # Wrap the circuit sequence into a single Circuit object with proper alignment
+        # and padding
+        wrapped_circuit_sequence = []
+        for timeslice in circuit_sequence:
+            # Compute the timespan of the timeslice
+            timespan = max(circ.duration for circ in timeslice)
+            # Create a template circuit: first element is the original timeslice, rest
+            # are empty tuples
+            template_circ = [timeslice] + [()] * (timespan - 1)
+            # Append the template circuit to the wrapped circuit sequence
+            wrapped_circuit_sequence.extend(template_circ)
+
+        # Create the final Circuit object with the given name and return it
+        return Circuit(
+            name=session.circuit_name, circuit=tuple(wrapped_circuit_sequence)
+        )
+
+    def get_timestamp(self) -> int:
+        """
+        Get the current timestamp of the interpretation step. The timestamp indicates
+        the time when the last circuit that was appended to the intermediate circuit
+        sequence ends.
+
+        The timestamp is calculated by summing the maximum duration of each timeslice in
+        the intermediate circuit sequence, omitting the timeslices which are just before
+        active composite operation sessions that are marked as same_timeslice=True. This
+        is because these timeslices run in parallel with the previous timeslice and thus
+        the previous timeslice's duration should not be considered in the total time.
+
+        NOTE: Access the time after appending the circuits of the current operation, so
+        that it includes all relevant timeslices.
+
+        NOTE: To sector the final circuit based on timestamps, unroll the circuit and
+        sum the durations of the timeslices until the desired timestamp is reached.
+
+        Returns
+        -------
+        int
+            The current timestamp of the interpretation step.
+
+        Examples
+        --------
+        Below we illustrate how the timestamp is calculated in different scenarios. Note
+        that the values shown correspond to the values after appending the circuit they
+        are associated with.
+
+        - No composite operations:
+
+        .. code-block:: text
+
+            "circuit_a": |--3--|                                time = 3
+            "circuit_b":       |--2--|                          time = 5
+            "circuit_c":       |-----5-----|                    time = 8
+            "circuit_d":       |---3---|                        time = 6
+            "circuit_e":                   |---3---|            time = 11
+
+        - Nested composite operation sessions:
+
+        .. code-block:: text
+
+            Base circuit:
+                "some circuit":                   |--2--|                      time = 2
+
+            Session 0:
+                    "ses0 circuit":                     |---------9---------|  time = 11
+
+            Session 1:
+                    "ses1 first circuit":               |--2--|                time = 4
+
+                    Nested session 0:
+                            "parallel circuit_0":             |----4----|      time = 8
+                    Nested session 1:
+                            "parallel circuit_1":             |--2--|          time = 6
+                    Nested session 2:
+                            "parallel circuit_2":             |-----5-----|    time = 9
+                    Nested session 3:
+                            "parallel circuit_3":             |-1-|            time = 5
+        """
+        # Build a set of indices to omit
+        timeslice_idxs_to_omit = {
+            session.start_timeslice_index - 1
+            for session in self.composite_operation_session_stack
+            if session.same_timeslice
+        }
+
+        # Initialize timestamp
+        timestamp = 0
+
+        # Sum the durations of the all previous timeslices, omitting the ones in the set
+        # and the final timeslice (which is added later)
+        timestamp += sum(
+            compress(
+                self.timeslice_durations,
+                # Generator: True = keep, False = omit
+                (
+                    idx not in timeslice_idxs_to_omit
+                    for idx in range(len(self.intermediate_circuit_sequence) - 1)
+                ),
+            )
+        )
+
+        # Add the duration of the final element of the final timeslice
+        # (this was appended last)
+        if self.intermediate_circuit_sequence:
+            # if statement to avoid index error when no circuits have been appended yet
+            timestamp += self.intermediate_circuit_sequence[-1][-1].duration
+
+        return timestamp
 
     @check_frozen
     def get_new_cbit_MUT(  # pylint: disable=invalid-name
@@ -741,8 +1011,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         # flatten the block history tuple of tuples
         return {
             stabilizer.uuid: stabilizer
-            for block_tuple in self.block_history
-            for block in block_tuple
+            for block in self.block_registry.values()
             for stabilizer in block.stabilizers
         }
 
@@ -753,8 +1022,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         """
         return {
             logical_x.uuid: logical_x
-            for block_tuple in self.block_history
-            for block in block_tuple
+            for block in self.block_registry.values()
             for logical_x in block.logical_x_operators
         }
 
@@ -765,7 +1033,6 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         """
         return {
             logical_z.uuid: logical_z
-            for block_tuple in self.block_history
-            for block in block_tuple
+            for block in self.block_registry.values()
             for logical_z in block.logical_z_operators
         }

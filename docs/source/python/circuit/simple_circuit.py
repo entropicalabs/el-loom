@@ -8,15 +8,15 @@ channel = Channel(label="my_channel_1", type=ChannelType.QUANTUM)
 gate = Circuit(name="my_gate", circuit=(), channels=[channel])
 
 # Create a circuit that applies the gate twice in series
-# When creating circuits with non-empty circuit sequence, channels are automatically inferred from the sequence.
+# When creating circuits with non-empty circuit sequence,
+# channels are automatically inferred from the sequence.
 circuit = Circuit(
     name="my_circuit",
     circuit=(gate, gate),
 )
 
 print(circuit)
-
-# Output:
-# my_circuit
+# =================================================================
+# my_circuit (2 ticks)
 # 0: my_gate
 # 1: my_gate

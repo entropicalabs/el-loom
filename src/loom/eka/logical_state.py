@@ -27,10 +27,10 @@ import numpy as np
 from .block import Block
 from .utilities.pauli_binary_vector_rep import SignedPauliOp
 from .utilities.stab_array import StabArray, find_destabarray
-from .utilities.validation_tools import dataclass_params
+from .utilities.validation_tools import dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalState:
     """A logical state defined by its logical operators that stabilize it. The state is
     the statevector that is simultaneously the +1 eigenvector of all the logical
@@ -244,9 +244,6 @@ class LogicalState:
 
     def get_tableau(self, block: Block) -> np.ndarray:
         """Given a Block, return the tableau of the logical state.
-        TODO: When shifting to multiple Blocks, we can instead take as input a list of
-        Block objects and match for example a 6 logical qubit state on 3 Block objects
-        that each have 2 logical qubits.
 
         Parameters
         ----------

@@ -18,13 +18,13 @@ limitations under the License.
 from dataclasses import asdict
 from pydantic.dataclasses import dataclass
 
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 from ..stabilizer import Stabilizer
 from ..pauli_operator import PauliOperator
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Operation:
     """
     Parent class for all operations in the EKA.
@@ -69,7 +69,7 @@ class Operation:
         return operation_class(**data_dict)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class BaseOperation(Operation):
     """
     Base class for all operations in the EKA.
@@ -80,7 +80,7 @@ class BaseOperation(Operation):
     """
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureStabilizerSyndrome(BaseOperation):
     """
     Measure the syndrome of a single stabilizer.
@@ -95,7 +95,7 @@ class MeasureStabilizerSyndrome(BaseOperation):
     stabilizer: Stabilizer
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MeasureObservable(BaseOperation):
     """
     Measure an observable.

@@ -99,6 +99,7 @@ class TestGraphsUtilities(unittest.TestCase):
         self.Hx_shor = np.array(
             [[1, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1, 1, 1]]
         )
+
         self.Hz_shor = np.array(
             [
                 [1, 1, 0, 0, 0, 0, 0, 0, 0],
@@ -109,6 +110,7 @@ class TestGraphsUtilities(unittest.TestCase):
                 [0, 0, 0, 0, 0, 0, 0, 1, 1],
             ]
         )
+
         self.H_shor = np.vstack(
             (
                 np.hstack((self.Hx_shor, np.zeros(self.Hx_shor.shape, dtype=int))),
@@ -1749,7 +1751,11 @@ class TestGraphsUtilities(unittest.TestCase):
                 pauli="XZ", data_qubits=[(1, 0), (2, 0)], ancilla_qubits=[(1, 1)]
             ),
         )
-        err_msg = "Input stabilizers do not define a CSS code."
+        err_msg = (
+            "TannerGraph generation requires input"
+            " stabilizers to define a CSS code. Input"
+            " contains non CSS stabilizers."
+        )
         with self.assertRaises(ValueError) as cm:
             _ = TannerGraph(noncss_stabs)
         self.assertEqual(str(cm.exception), err_msg)

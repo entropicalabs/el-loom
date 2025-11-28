@@ -71,6 +71,40 @@ Now we have a compact representation of the logical circuit that implements a si
 
 The next step would be to interpret it and execute it on a backend. 
 
+.. admonition:: Click me to see the full example!
+    :collapsible: closed
+
+    .. code-block:: python
+
+        from loom.eka import Eka, Lattice, Block, Stabilizer, PauliOperator
+        from loom.eka.operations import (
+            ResetAllDataQubits,
+            MeasureBlockSyndromes,
+            MeasureLogicalZ,
+        )
+
+        lattice = Lattice.linear(lattice_size=(3,))
+
+        logical_qubit = Block(
+            unique_label="q1",
+            stabilizers=(
+                Stabilizer("ZZ", ((0, 0), (1, 0)), ancilla_qubits=((0, 1),)),
+                Stabilizer("ZZ", ((1, 0), (2, 0)), ancilla_qubits=((1, 1),)),
+            ),
+            logical_x_operators=(PauliOperator("XXX", ((0, 0), (1, 0), (2, 0))),),
+            logical_z_operators=(PauliOperator("Z", ((0, 0),)),),
+        )
+
+        reset_op = ResetAllDataQubits("q1", state="0")
+        measure_synd_op = MeasureBlockSyndromes("q1", n_cycles=3)
+        measure_log_op = MeasureLogicalZ("q1")
+
+        my_eka = Eka(
+            lattice=lattice,
+            blocks=[logical_qubit],
+            operations=[reset_op, measure_synd_op, measure_log_op],
+        )
+
 Validations
 ^^^^^^^^^^^
 

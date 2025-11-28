@@ -23,11 +23,11 @@ import re
 
 from pydantic import ValidationError
 
-from loom.eka import Circuit, Channel, ChannelType
+from loom.eka import Circuit, Channel, ChannelType, IfElseCircuit
 from loom.eka.utilities import dumps, loads, findall
 
 
-# pylint: disable=too-many-public-methods
+# pylint: disable=too-many-public-methods, too-many-instance-attributes
 class TestCircuit(unittest.TestCase):
     """
     Test for the Circuit class.
@@ -42,6 +42,22 @@ class TestCircuit(unittest.TestCase):
         self.entangle2 = Circuit(
             "entangle2",
             [self.hadamard, self.cnot, self.cnot2],
+        )
+
+        self.if_circ = IfElseCircuit(if_circuit=self.cnot, else_circuit=self.hadamard)
+        self.circ_with_if = Circuit(
+            "circ_with_if1",
+            [
+                self.hadamard,
+                self.if_circ,
+            ],
+        )
+        nested_if_circ1 = IfElseCircuit(
+            if_circuit=self.cnot, else_circuit=self.circ_with_if
+        )
+        self.circ_with_nested_if = Circuit(
+            "circ_with_nested_if",
+            [self.hadamard, nested_if_circ1],
         )
 
         # Set to ERROR to avoid cluttering the test output
@@ -122,9 +138,9 @@ class TestCircuit(unittest.TestCase):
         )
         self.assertIn("Input should be a valid tuple", str(cm.exception))
 
+        # Not assigning channels == no channels
         test_h = Circuit("hadamard")
-        self.assertEqual(len(test_h.channels), 1)
-        self.assertEqual(type(test_h.channels[0]), Channel)
+        self.assertEqual(len(test_h.channels), 0)
         self.assertEqual(test_h.circuit, tuple())
 
         channel = Channel()
@@ -146,6 +162,8 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(self.hadamard.nr_of_qubits_in_circuit(), 1)
         self.assertEqual(self.cnot.nr_of_qubits_in_circuit(), 2)
         self.assertEqual(self.entangle2.nr_of_qubits_in_circuit(), 3)
+        self.assertEqual(self.circ_with_if.nr_of_qubits_in_circuit(), 2)
+        self.assertEqual(self.circ_with_nested_if.nr_of_qubits_in_circuit(), 2)
 
     def test_base_gate_cloning1(self):
         """
@@ -222,6 +240,25 @@ class TestCircuit(unittest.TestCase):
             [findall(new_cnot_ids, id) for id in new_had_ids],
         )
         self.assertEqual(new_entangle.duration, self.entangle.duration)
+
+    def test_clone_with_ifelse(self):
+        """
+        Tests that the cloning of a Circuit that contains IfElseCircuits is done
+        correctly.
+        """
+        circ_with_if = self.circ_with_if.clone()
+
+        self.assertEqual(circ_with_if, self.circ_with_if)
+        self.assertEqual(circ_with_if.name, self.circ_with_if.name)
+        self.assertNotEqual(circ_with_if.id, self.circ_with_if.id)
+        self.assertNotEqual(circ_with_if.channels, self.circ_with_if.channels)
+
+        circ_with_nif = self.circ_with_nested_if.clone()
+
+        self.assertEqual(circ_with_nif, self.circ_with_nested_if)
+        self.assertEqual(circ_with_nif.name, self.circ_with_nested_if.name)
+        self.assertNotEqual(circ_with_nif.id, self.circ_with_nested_if.id)
+        self.assertNotEqual(circ_with_nif.channels, self.circ_with_nested_if.channels)
 
     def test_load_dump(self):
         """
@@ -332,6 +369,8 @@ class TestCircuit(unittest.TestCase):
         self.assertEqual(self.hadamard.duration, 1)
         self.assertEqual(self.cnot.duration, 5)
         self.assertEqual(self.entangle2.duration, 11)
+        self.assertEqual(self.circ_with_if.duration, 6)
+        self.assertEqual(self.circ_with_nested_if.duration, 7)
         test_circuit = Circuit(
             "test",
             [
@@ -465,6 +504,17 @@ class TestCircuit(unittest.TestCase):
             str(cm.exception),
         )
 
+        test_with_if = Circuit.from_circuits(
+            "test_with_if",
+            [(self.circ_with_if, range(3)), (self.circ_with_nested_if, range(4))],
+        )
+
+        self.assertEqual(test_with_if.name, "test_with_if")
+        self.assertEqual(len(test_with_if.channels), 4)
+        self.assertEqual(test_with_if.duration, 13)
+        self.assertEqual(test_with_if.circuit[0][0], self.circ_with_if)
+        self.assertEqual(test_with_if.circuit[6][0], self.circ_with_nested_if)
+
     def test_flatten_circuit_is_flat(self):
         """
         Tests whether the flattening function returns a flat circuit,
@@ -473,13 +523,28 @@ class TestCircuit(unittest.TestCase):
 
         def is_flat(circuit: Circuit):
             for subcirc in circuit.circuit:
-                if len(subcirc) > 0 and len(subcirc[0].circuit) > 0:
+                if (
+                    len(subcirc) > 0
+                    and len(subcirc[0].circuit) > 0
+                    and not hasattr(subcirc[0], "_loom_ifelse_marker")
+                ):
                     return False  # Subcircuit contains more subcircuits
             return True
 
         full_circ = Circuit("full_circ", [self.entangle, self.hadamard])
-        self.assertEqual(False, is_flat(full_circ))
-        self.assertEqual(True, is_flat(full_circ.flatten()))
+        self.assertFalse(is_flat(full_circ))
+        self.assertTrue(is_flat(full_circ.flatten()))
+
+        full_circ_w_if = Circuit("full_circ_w_if", [self.entangle, self.circ_with_if])
+        self.assertFalse(is_flat(full_circ_w_if))
+        self.assertTrue(is_flat(full_circ_w_if.flatten()))
+
+        full_circ_w_nif = Circuit(
+            "full_circ_w_nif", [self.entangle, self.circ_with_nested_if]
+        )
+
+        self.assertFalse(is_flat(full_circ_w_nif))
+        self.assertTrue(is_flat(full_circ_w_nif.flatten()))
 
     def test_flatten_several_levels_nesting(self):
         """
@@ -712,6 +777,43 @@ class TestCircuit(unittest.TestCase):
 
         # Check that unrolling a circuit twice gives the same result
         self.assertEqual(Circuit.unroll(unrolled_circ), unrolled_circ.circuit)
+
+    def test_unroll_ifelsecircuit(self):
+        """
+        Test the unroll method for a circuit with an IfElseCircuit.
+        """
+        # Set up a circuit with an IfElseCircuit
+        base = Circuit("base", duration=1)
+        circ = Circuit("circ", [[base], [Circuit("circ2", [[base], [], [base]])]])
+        if_circ = IfElseCircuit(if_circuit=base, else_circuit=circ)
+
+        circ_with_if = Circuit("circ_with_if1", [if_circ, circ])
+
+        # Create unrolled and expected circuits
+        unrolled_circ_with_if = Circuit.unroll(circ_with_if)
+        expected_circ_with_if = Circuit(
+            "expected_circ",
+            circuit=[
+                [if_circ],
+                [],
+                [],
+                [],
+                [base],
+                [base],
+                [],
+                [base],
+            ],
+        )
+
+        # Assertions
+        # The IfElseCircuit itself contains unrolled circuits
+        self.assertEqual(unrolled_circ_with_if, expected_circ_with_if.circuit)
+        self.assertEqual(
+            unrolled_circ_with_if[0][0].if_circuit.circuit, base.unroll(base)
+        )
+        self.assertEqual(
+            unrolled_circ_with_if[0][0].else_circuit.circuit, circ.unroll(circ)
+        )
 
     def test_circuit_equivalence(self):
         """
@@ -1085,12 +1187,30 @@ class TestCircuit(unittest.TestCase):
                 ((long_hadamard_1,), (), (cnot,)),  # initial with extra padding
                 ((long_hadamard_1,), (), (), (cnot,), ()),  # padded sequence
             ),
+            (
+                ((self.hadamard,), (self.if_circ,)),  # initial
+                (
+                    (self.hadamard,),
+                    (self.if_circ,),
+                    (),
+                    (),
+                    (),
+                    (),
+                ),  # padded sequence
+            ),
         ]
         for initial_sequence, expected_padded_sequence in initial_and_padded_sequences:
             padded_circ_timeseq = Circuit.construct_padded_circuit_time_sequence(
                 initial_sequence
             )
             self.assertEqual(padded_circ_timeseq, expected_padded_sequence)
+
+    def test_empty_circuit(self):
+        """Tests that an empty circuit is handled correctly."""
+        empty_circ = Circuit("empty")
+        self.assertEqual(empty_circ.duration, 1)
+        self.assertEqual(empty_circ.channels, ())
+        self.assertEqual(empty_circ.circuit, ())
 
 
 if __name__ == "__main__":

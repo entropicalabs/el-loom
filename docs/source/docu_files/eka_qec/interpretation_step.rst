@@ -130,6 +130,14 @@ It currently creates a tuple of blocks every time an operation is executed.
 
 This could be improved by only reflecting changes of a full time step in the block history (and not every single operation within these time steps).
 
+- :attr:`~loom.interpreter.interpretation_step.InterpretationStep.composite_operation_session_stack` : :code:`list[CompositeOperationSession]`
+
+This stack keeps track of all active composite operation sessions that are currently being executed. It is used to get the timestamp within the applicators, even when nested inside composite operations.
+
+- :attr:`~loom.interpreter.interpretation_step.InterpretationStep.timeslice_durations` : :code:`list[int]`
+
+This list keeps track of the duration of each timeslice in :attr:`~loom.interpreter.interpretation_step.InterpretationStep.intermediate_circuit_sequence`. It is used to quickly calculate the current timestamp during interpretation.
+
 - :attr:`~loom.interpreter.interpretation_step.InterpretationStep.is_frozen` : :code:`bool`
 
 This flag is used to signal that interpretation is completed and the fields may not be mutated anymore.

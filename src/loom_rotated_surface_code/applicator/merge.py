@@ -94,7 +94,6 @@ def merge_consistency_check(  # pylint: disable=too-many-branches
     ) + len(block2.data_qubits):
         raise ValueError(context_str + "The blocks overlap.")
 
-    # TODO this can be replaced by a more elaborate scheme to merge two blocks
     # 3 - Check that the blocks' upper left corners are aligned
     # Compute the number of non zero coordinates in the vector that links the upper left
     # corners of the two blocks.

@@ -392,3 +392,53 @@ class ResourceState(str, Enum):
         """Allow inputs with upper-case characters. For more details, see the
         documentation of `enum_missing` at the beginning of the file."""
         return enum_missing(cls, value)
+
+
+class BoolOp(str, Enum):
+    """
+    BoolOp enum to specify operations on channels. Used in the "name" field of Circuit
+    to indicate classical logic operations.
+
+    It is understood that AND, NAND, OR, NOR, and XOR can correspond to operations that
+    reduce multiple bits to a single bit, while MATCH and NOT correspond to an operation
+    on one bit only.
+
+    AND -> True when all channels are 1
+    NAND -> True when at least one channel is 0
+    OR -> True when at least one channel is 1
+    NOR -> True when all channels are 0
+    XOR -> True when an odd number of channels are 1
+
+    NOT -> True when the channel is 0
+    MATCH -> True when the channel is 1
+    """
+
+    # Multi-bit operation
+    AND = "and"
+    NAND = "nand"
+    OR = "or"
+    NOR = "nor"
+    XOR = "xor"
+
+    # Single-bit operation
+    NOT = "not"
+    MATCH = "match"
+
+    @classmethod
+    def _missing_(cls, value):
+        """Allow inputs with upper-case characters. For more details, see the
+        documentation of `enum_missing` at the beginning of the file."""
+        return enum_missing(cls, value)
+
+    def __str__(self):
+        return str(self.value)
+
+    @staticmethod
+    def multi_bit_list() -> list[BoolOp]:
+        """Return list of multi-bit operations."""
+        return [BoolOp.AND, BoolOp.NAND, BoolOp.OR, BoolOp.NOR, BoolOp.XOR]
+
+    @staticmethod
+    def mono_bit_list() -> list[BoolOp]:
+        """Return list of single-bit operations."""
+        return [BoolOp.NOT, BoolOp.MATCH]

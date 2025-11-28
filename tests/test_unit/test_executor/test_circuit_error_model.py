@@ -495,20 +495,6 @@ class TestCircuitErrorModel(unittest.TestCase):
                 application_mode=ApplicationMode.BEFORE_GATE,
             )
 
-        # It is barely impossible to validate this properly.
-        # Should raise ValidationError if gate_error_probabilities lambda does not
-        # return a list or float
-        # with self.assertRaises(TypeError):
-        #     instance = CircuitErrorModel(
-        #         circuit=self.meas_circ,
-        #         is_time_dependent=False,
-        #         gate_error_probabilities={
-        #             "x": lambda _: 0.01,
-        #         },
-        #         error_type=ErrorType.PAULI_X,
-        #         application_mode=ApplicationMode.BEFORE_GATE,
-        #     )
-
         with self.assertRaises(ValueError):
             # Should raise ValueError if time dependent and gate_duration not defined
             _ = CircuitErrorModel(

@@ -31,10 +31,10 @@ from loom.eka import (
     Circuit,
     Channel,
 )
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class ShorCode(Block):
     """
     A sub-class of ``Block`` that represents a Shor code block.

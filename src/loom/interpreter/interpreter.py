@@ -109,6 +109,12 @@ def interpret_operation(
                 "is not supported at the moment"
             )
 
+    if step.composite_operation_session_stack:
+        raise ValueError(
+            "Please ensure that all composite operation sessions have been ended. "
+            f"Found live sessions: {step.composite_operation_session_stack}"
+        )
+
 
 def cleanup_final_step(final_step: InterpretationStep) -> InterpretationStep:
     """

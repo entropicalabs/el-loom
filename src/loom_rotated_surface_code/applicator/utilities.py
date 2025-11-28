@@ -58,9 +58,11 @@ def generate_syndrome_extraction_circuits(
     -------
     tuple[tuple[SyndromeCircuit, ...], dict[str, str]]:
         A tuple containing:
+
         - A tuple of generated syndrome extraction circuits.
-        - A dictionary mapping stabilizer UUIDs to their corresponding syndrome
+        - A dictionary mapping stabilizer UUIDs to their corresponding syndrome \
         circuit UUIDs.
+
     """
     # find stabilizer schedules
     (
@@ -134,28 +136,47 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
         |       |
         3-------4
 
+    For type 4 corner configuration (U-shape phase gate), draw a diagonal line through
+    the middle-edge topological corner towards the direction of the angle topological
+    corner. This line divides the block into two parts, one triangle part and one
+    non-triangle part. Return schedules for X and Z-type stabilizers in these parts.
+
+    Example: the line is drawn through topological corner 2 and geometric corner x::
+
+        (type 4)
+        1-------.
+        |       |
+        |       2
+        |       |
+        x       |
+        3-------4
 
     The algorithm is the following:
 
-    - A.) Find the boundary type of the short boundary connecting two topological
+    - A.) Find the boundary type of the short boundary connecting two topological \
         corners. For type 1, pick any short edge.
     - B.) Find schedules
 
-        - B.1) Boundary type is of opposite Pauli type to the logical operator
-            running along the boundary.
-            (e.g. boundary_type = "X" means logical Z running along the boundary)
-        - B.2) For type 1 (rectangle) and type 2 (U shape), the opposite short edge
-            has the same Pauli type. The schedule of stabilizers with the same Pauli
-            type as the short edge is determined so that the propagation of the
-            opposite Pauli type is perpendicular to the short edge. The schedule of
-            the-opposite-type stabilizers is the opposite schedule of the above
-            schedule.
-        - B.3) For type 3 (L shape), the opposite short edge has the opposite Pauli
-            type. Inside the triangle, the schedule for stabilizers with the same type
-            as the short edge is determined. Then the schedule for the other type
-            stabilizers inside the triangle is the opposite schedule. Outside the
-            triangle, the schedules are the opposite schedules of the same stabilizer
-            type.
+        - B.1.) Boundary type is of opposite Pauli type to the logical operator \
+        running along the boundary. \
+        (e.g. boundary_type = "X" means logical Z running along the boundary)
+        - B.2.) For type 1 (rectangle) and type 2 (U shape), the opposite short edge \
+        has the same Pauli type. The schedule of stabilizers with the same Pauli \
+        type as the short edge is determined so that the propagation of the \
+        opposite Pauli type is perpendicular to the short edge. The schedule of \
+        the-opposite-type stabilizers is the opposite schedule of the above \
+        schedule.
+        - B.3.) For type 3 (L shape), the opposite short edge has the opposite Pauli \
+        type. Inside the triangle, the schedule for stabilizers with the same type \
+        as the short edge is determined. Then the schedule for the other type \
+        stabilizers inside the triangle is the opposite schedule. Outside the \
+        triangle, the schedules are the opposite schedules of the same stabilizer type.
+        - B.4.) For type 4 (U-shape phase gate), inside the triangle, the schedule for \
+        stabilizers with the same type as the short edge is determined. Then the \
+        schedule for the other type of stabilizers is the opposite schedule. \
+        Outside the triangle, the schedules of both type stabilizers follow the \
+        schedule for stabilizers with the same type as the short edge inside the \
+        triangle.
 
     Returns
     -------
@@ -171,7 +192,7 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
         None for other type of config.
     """
     config, pivot_corners = rsc_block.config_and_pivot_corners
-    is_long_edge_horizontal = rsc_block.size[0] > rsc_block.size[1]
+    is_horizontal = rsc_block.is_horizontal
     stabilizers = rsc_block.stabilizers
     if config == 0:
         triangle_x_schedule = triangle_z_schedule = None
@@ -185,9 +206,7 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
         )
 
     short_end_corner = pivot_corners[3]  # short end corner
-    long_edge_idx = (
-        0 if is_long_edge_horizontal else 1
-    )  # coordinate index along the long side
+    long_edge_idx = 0 if is_horizontal else 1  # coordinate index along the long side
 
     # A) Find boundary type for the short-edge boundary passing through short_end_corner
     weight2_stabs_at_boundary = [
@@ -209,20 +228,16 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
 
     # B) Find schedules
     match config:
-        case 1 | 2:
+        case 1 | 2 | 4:
             if boundary_type == "Z":
                 # logical X runs along the short edge
                 non_triangle_x_schedule = (
-                    FourBodySchedule.Z
-                    if is_long_edge_horizontal
-                    else FourBodySchedule.N
+                    FourBodySchedule.Z if is_horizontal else FourBodySchedule.N
                 )
             else:
                 # logical Z runs along the short edge
                 non_triangle_x_schedule = (
-                    FourBodySchedule.N
-                    if is_long_edge_horizontal
-                    else FourBodySchedule.Z
+                    FourBodySchedule.N if is_horizontal else FourBodySchedule.Z
                 )
             non_triangle_z_schedule = non_triangle_x_schedule.opposite_schedule()
             triangle_x_schedule, triangle_z_schedule = None, None
@@ -230,16 +245,12 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
             if boundary_type == "Z":
                 # logical Z runs along the short edge of the triangle part
                 triangle_x_schedule = (
-                    FourBodySchedule.N
-                    if is_long_edge_horizontal
-                    else FourBodySchedule.Z
+                    FourBodySchedule.N if is_horizontal else FourBodySchedule.Z
                 )
             else:
                 # logical X runs along the short edge of the triangle part
                 triangle_x_schedule = (
-                    FourBodySchedule.Z
-                    if is_long_edge_horizontal
-                    else FourBodySchedule.N
+                    FourBodySchedule.Z if is_horizontal else FourBodySchedule.N
                 )
             triangle_z_schedule = triangle_x_schedule.opposite_schedule()
             non_triangle_x_schedule = triangle_x_schedule.opposite_schedule()
@@ -253,6 +264,98 @@ def find_schedules(rsc_block: RotatedSurfaceCode) -> tuple[
         triangle_x_schedule,
         triangle_z_schedule,
     )
+
+
+def find_stabilizer_position(
+    rsc_block: RotatedSurfaceCode,
+    config: int,
+    pivot_corners: tuple[
+        tuple[int, ...], tuple[int, ...], tuple[int, ...], tuple[int, ...]
+    ],
+    stab: Stabilizer,
+    is_horizontal: bool,
+) -> tuple[bool, Direction | None]:
+    # pylint: disable=duplicate-code
+    """
+    Find stabilizer position relative to the triangle partition
+    (in type 3 configuration)
+
+    Parameters
+    ----------
+    rsc_block: RotatedSurfaceCode
+        The initial block
+    config: int
+        Corner configuration
+    pivot_corners:
+        tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...], tuple[int, ...]]
+        Four topological corners
+    stab: Stabilizer
+        The input stabilizer
+    is_horizontal: bool
+        True if the long edge of the block is horizontal
+
+    Returns
+    -------
+    tuple[bool, Direction | None]
+        True if the stabilizer is inside triangular part (if any)
+        Direction of the boundary if the input stabilizer is a weight-2 stabilizer
+
+    """
+
+    if config == 0:
+        is_in_triangle = False
+    else:
+        long_end_corner, middle_corner, _, short_end_corner = pivot_corners
+        long_edge_idx = (
+            0 if is_horizontal else 1
+        )  # coordinate index along the long side
+        short_edge_idx = (
+            1 if is_horizontal else 0
+        )  # coordinate index along the short side
+
+        def is_triangular_qubit(q) -> bool:
+            """Determine if the input qubit is inside the triangular part
+            (including the boundaries of the triangle). This is done by checking
+            whether the distance along the long side of the block between the input
+            qubit and the middle-edge corner is at least the distance along the
+            short side between the same two qubits.
+            """
+            match config:
+                case 1 | 2 | 4:
+                    return False
+                case 3:
+                    dshort = (
+                        middle_corner[short_edge_idx] - q[short_edge_idx]
+                        if middle_corner[short_edge_idx]
+                        > short_end_corner[short_edge_idx]
+                        else q[short_edge_idx] - middle_corner[short_edge_idx]
+                    )
+                    dlong = (
+                        middle_corner[long_edge_idx] - q[long_edge_idx]
+                        if middle_corner[long_edge_idx] > long_end_corner[long_edge_idx]
+                        else q[long_edge_idx] - middle_corner[long_edge_idx]
+                    )
+                    return 0 <= dshort <= dlong
+                case _:
+                    raise ValueError(f"Unknown corner configuration {config}.")
+
+        is_in_triangle = all(is_triangular_qubit(dqubit) for dqubit in stab.data_qubits)
+
+    # find boundary direction for weight-2 stabilizer
+    boundary = None
+    weight = len(stab.pauli)
+    if weight == 2:
+        qubit_directions = [
+            set(
+                direction
+                for direction in Direction
+                if dqubit in rsc_block.boundary_qubits(direction)
+            )
+            for dqubit in stab.data_qubits
+        ]
+        boundary = list(qubit_directions[0].intersection(qubit_directions[1]))[0]
+
+    return is_in_triangle, boundary
 
 
 def create_new_syndrome_circuits_with_known_schedules(
@@ -296,100 +399,6 @@ def create_new_syndrome_circuits_with_known_schedules(
         circuit UUIDs.
     """
 
-    # Define 2 auxiliary functions
-    def find_stabilizer_position(
-        rsc_block: RotatedSurfaceCode,
-        config: int,
-        pivot_corners: tuple[
-            tuple[int, ...], tuple[int, ...], tuple[int, ...], tuple[int, ...]
-        ],
-        stab: Stabilizer,
-        is_long_edge_horizontal: bool,
-    ) -> tuple[bool, Direction | None]:
-        """
-        Find stabilizer position relative to the triangle partition
-        (in type 3 configuration)
-
-        Parameters
-        ----------
-        block: RotatedSurfaceCode
-            The initial block
-        config: int
-            Corner configuration
-        pivot_corners:
-            tuple[tuple[int, ...], tuple[int, ...], tuple[int, ...], tuple[int, ...]]
-            Four topological corners
-        stab: Stabilizer
-            The input stabilizer
-        is_long_edge_horizontal: bool
-            True if the long edge of the block is horizontal
-
-        Returns
-        -------
-        tuple[bool, Direction | None]
-            True if the stabilizer is inside triangular part (if any)
-            Direction of the boundary if the input stabilizer is a weight-2 stabilizer
-
-        """
-
-        if config == 0:
-            is_in_triangle = False
-        else:
-            long_end_corner, middle_corner, _, short_end_corner = pivot_corners
-            long_edge_idx = (
-                0 if is_long_edge_horizontal else 1
-            )  # coordinate index along the long side
-            short_edge_idx = (
-                1 if is_long_edge_horizontal else 0
-            )  # coordinate index along the short side
-
-            def is_triangular_qubit(q) -> bool:
-                """Determine if the input qubit is inside the triangular part
-                (including the boundaries of the triangle). This is done by checking
-                whether the distance along the long side of the block between the input
-                qubit and the middle-edge corner is at least the distance along the
-                short side between the same two qubits.
-                """
-                match config:
-                    case 1 | 2:
-                        return False
-                    case 3:
-                        dshort = (
-                            middle_corner[short_edge_idx] - q[short_edge_idx]
-                            if middle_corner[short_edge_idx]
-                            > short_end_corner[short_edge_idx]
-                            else q[short_edge_idx] - middle_corner[short_edge_idx]
-                        )
-                        dlong = (
-                            middle_corner[long_edge_idx] - q[long_edge_idx]
-                            if middle_corner[long_edge_idx]
-                            > long_end_corner[long_edge_idx]
-                            else q[long_edge_idx] - middle_corner[long_edge_idx]
-                        )
-                        return 0 <= dshort <= dlong
-                    case _:
-                        raise ValueError(f"Unknown corner configuration {config}.")
-
-            is_in_triangle = all(
-                is_triangular_qubit(dqubit) for dqubit in stab.data_qubits
-            )
-
-        # find boundary direction for weight-2 stabilizer
-        boundary = None
-        weight = len(stab.pauli)
-        if weight == 2:
-            qubit_directions = [
-                set(
-                    direction
-                    for direction in Direction
-                    if dqubit in rsc_block.boundary_qubits(direction)
-                )
-                for dqubit in stab.data_qubits
-            ]
-            boundary = list(qubit_directions[0].intersection(qubit_directions[1]))[0]
-
-        return is_in_triangle, boundary
-
     def find_data_qubits_order(
         stab: Stabilizer,
         starting_qubit_diag_direction: DiagonalDirection,
@@ -404,7 +413,7 @@ def create_new_syndrome_circuits_with_known_schedules(
         ----------
         stab: Stabilizer
             The input stabilizer
-        starting_qubit_directions: tuple[Direction, Direction]
+        starting_qubit_diag_direction: tuple[Direction, Direction]
             Direction of the starting qubit
         schedule: FourBodySchedule
             Schedule
@@ -468,7 +477,7 @@ def create_new_syndrome_circuits_with_known_schedules(
 
         return data_qubits
 
-    is_long_edge_horizontal = rsc_block.size[0] > rsc_block.size[1]
+    is_horizontal = rsc_block.is_horizontal
     config, pivot_corners = rsc_block.config_and_pivot_corners
 
     if triangle_x_schedule is None or triangle_z_schedule is None:
@@ -482,7 +491,7 @@ def create_new_syndrome_circuits_with_known_schedules(
     for stab in rsc_block.stabilizers:
         pauli_type = stab.pauli_type
         is_in_triangular, boundary_direction = find_stabilizer_position(
-            rsc_block, config, pivot_corners, stab, is_long_edge_horizontal
+            rsc_block, config, pivot_corners, stab, is_horizontal
         )
         if is_in_triangular:
             schedule = triangle_x_schedule if pauli_type == "X" else triangle_z_schedule
@@ -505,12 +514,12 @@ def create_new_syndrome_circuits_with_known_schedules(
                 else:
                     # Unsupported weight
                     continue
-            case 2 | 3:
+            case 2 | 3 | 4:
                 # for non-standard block, name it randomly
                 syndrome_circuit_name = (
                     f"{'triangular' if is_in_triangular else 'non_triangular'}-"
                     f"{boundary_direction if boundary_direction else 'bulk'}"
-                    f"-{str(pauli_type)*len(stab.pauli)}"
+                    f"-{str(pauli_type) * len(stab.pauli)}"
                 )
             case _:
                 raise ValueError(f"Unknown corner configuration {config}.")
@@ -537,7 +546,7 @@ def create_new_syndrome_circuits_with_known_schedules(
         # As a result, we are going to rearrange the channel order so that the data
         # qubits interact with the ancilla in the appropriate order
 
-        # Rearrange the the quantum channels in the Circuit part
+        # Rearrange the quantum channels in the Circuit part
         ordered_data_qubits = find_data_qubits_order(
             stab, starting_qubit_diag_directions, schedule, boundary_direction
         )
@@ -981,7 +990,6 @@ def find_detailed_schedules(
     Find the detailed schedules for each stabilizer in the input block. The detailed
     schedule is determined by the schedule type (N or Z) and the starting qubit
     direction.
-    TODO: Currently, this function only supports blocks without triangle schedules.
     We can expand it by refactoring the code to distinguish between triangle and
     non-triangle stabilizers with a function.
 
@@ -1004,21 +1012,51 @@ def find_detailed_schedules(
         triangle_z_schedule,
     ) = find_schedules(rsc_block)
 
-    if triangle_x_schedule is not None or triangle_z_schedule is not None:
-        raise ValueError("Current implementation requires no triangle schedules.")
+    is_horizontal = rsc_block.is_horizontal
+    config, pivot_corners = rsc_block.config_and_pivot_corners
 
-    x_stab_detailed_schedule = DetailedSchedule.from_schedule_and_direction(
-        non_triangle_x_schedule, starting_direction
-    )
-    z_stab_detailed_schedule = DetailedSchedule.from_schedule_and_direction(
-        non_triangle_z_schedule, starting_direction
-    )
-
-    return {
-        stab: (
-            x_stab_detailed_schedule
-            if stab.pauli_type == "X"
-            else z_stab_detailed_schedule
+    detailed_schedules_map = {}
+    for stab in rsc_block.stabilizers:
+        pauli_type = stab.pauli_type
+        is_in_triangular, _ = find_stabilizer_position(
+            rsc_block, config, pivot_corners, stab, is_horizontal
         )
-        for stab in rsc_block.stabilizers
-    }
+        if is_in_triangular:
+            schedule = triangle_x_schedule if pauli_type == "X" else triangle_z_schedule
+        else:
+            schedule = (
+                non_triangle_x_schedule
+                if pauli_type == "X"
+                else non_triangle_z_schedule
+            )
+        detailed_schedule = DetailedSchedule.from_schedule_and_direction(
+            schedule, starting_direction
+        )
+        detailed_schedules_map.update({stab: detailed_schedule})
+
+    return detailed_schedules_map
+
+
+def find_relative_diagonal_direction(
+    from_qubit: tuple[int, ...], to_qubit: tuple[int, ...]
+) -> DiagonalDirection:
+    """
+    Find the relative diagonal direction from qubit_1 to qubit_2.
+    If two qubits have the same horizontal coordinate, the horizontal direction is
+    set to Direction.LEFT by default.
+    If two qubits have the same vertical coordinate, the vertical direction is
+    set to Direction.TOP by default.
+
+    Parameters
+    ----------
+    from_qubit: tuple[int, ...]
+        The starting qubit
+    to_qubit: tuple[int, ...]
+        The final qubit
+    """
+    hor_direction = Direction.RIGHT if to_qubit[0] > from_qubit[0] else Direction.LEFT
+    vert_direction = Direction.BOTTOM if to_qubit[1] > from_qubit[1] else Direction.TOP
+    diagonal_direction = DiagonalDirection.from_directions(
+        (hor_direction, vert_direction)
+    )
+    return diagonal_direction

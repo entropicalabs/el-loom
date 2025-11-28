@@ -159,16 +159,6 @@ class TestCodeSwitchValidatorSplit(unittest.TestCase):
         """
         Define necessary objects for the split operation tests.
         """
-        # self.lattice = Lattice.square_2d()
-        # self.block_big = RotatedSurfaceCode.create(
-        #     7, 3, self.lattice, "q_big", position=(0, 0)
-        # )
-        # self.block_left = RotatedSurfaceCode.create(
-        #     3, 3, self.lattice, "q_left", position=(0, 0)
-        # )
-        # self.block_right = RotatedSurfaceCode.create(
-        #     3, 3, self.lattice, "q_right", position=(4, 0)
-        # )
         self.lattice = Lattice.square_2d()
         self.block_big = Block(
             stabilizers=(

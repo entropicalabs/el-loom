@@ -15,8 +15,7 @@ The example below shows how to create a :class:`~loom.eka.block.Block` for a rot
 
 .. code-block:: python
 
-    import loom_rotated_surface_code as loom_rsc
-    from loom_rsc.code_factory import RotatedSurfaceCode
+    from loom_rotated_surface_code.code_factory import RotatedSurfaceCode
     from loom.eka import Lattice
 
     # Create a block for a rotated surface code of distance 3
@@ -78,7 +77,7 @@ Example of application :
     # Interpret the operations on the rotated surface code blocks
     eka_experiment = Eka(lattice, blocks=[rsc_block_1, rsc_block_2], operations=operations)
     # This will contain the circuit, syndromes and detectors of the system resulting from the operations.
-    final_state = interpreter.interpret_eka(eka_experiment)
+    final_state = interpret_eka(eka_experiment)
 
 To view further examples on some sample experiments using the rotated surface code factory, 
 please refer to :doc:`Rotated Surface Code Examples <examples>`.

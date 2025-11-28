@@ -1,3 +1,5 @@
+from loom.eka.circuit import Channel, ChannelType, Circuit
+
 c1 = Channel(label="my_channel_1", type=ChannelType.QUANTUM)
 c2 = Channel(label="my_channel_2", type=ChannelType.QUANTUM)
 
@@ -13,9 +15,8 @@ s_circuit = Circuit(
 )
 
 print(s_circuit)
-
-# Output:
-# s_circuit
+# =================================================================
+# s_circuit (3 ticks)
 # 0: g1
 # 1: g2
 # 2: g12
@@ -31,8 +32,8 @@ p_circuit = Circuit(
 )
 
 print(p_circuit)
-
-# Output:
-# p_circuit
-# 0: g1 g2
+# =================================================================
+# p_circuit (2 ticks)
+# 0: g1
+# 0: g2
 # 1: g12

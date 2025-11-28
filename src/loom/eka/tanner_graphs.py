@@ -829,7 +829,11 @@ class TannerGraph:
 
         # Verify list of stabilizers define a CSS code
         if not verify_css_code_stabilizers(stabilizers):
-            raise ValueError("Input stabilizers do not define a CSS code.")
+            raise ValueError(
+                "TannerGraph generation requires input"
+                " stabilizers to define a CSS code. Input"
+                " contains non CSS stabilizers."
+            )
 
         # Extract properties of datas and checks
         data_qubits = {qubit for stab in stabilizers for qubit in stab.data_qubits}

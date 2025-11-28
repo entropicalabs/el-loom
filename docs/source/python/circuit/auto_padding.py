@@ -1,8 +1,10 @@
+from loom.eka.circuit import Circuit
+
 # This can be done automatically:
 valid_circuit = Circuit(
     name="valid_circuit",
-    circuit=Circuit.construct_padded_circuit_time_sequence(  # Automatically pads the circuit
-        (
+    circuit=Circuit.construct_padded_circuit_time_sequence(
+        (  # Automatically pads the circuit
             (long_subcircuit,),
             (
                 Circuit(name="gate_1", channels=[chan1]),
@@ -13,8 +15,8 @@ valid_circuit = Circuit(
 )
 
 print(valid_circuit)
-# Output:
-# valid_circuit
+# =================================================================
+# valid_circuit (3 ticks)
 # 0: long_subcircuit
-# 1:
-# 2: gate_1 gate_2
+# 2: gate_1
+# 2: gate_2

@@ -36,14 +36,14 @@ from loom.eka.utilities import (
     Direction,
     Orientation,
     DiagonalDirection,
-    dataclass_params,
+    dataclass_config,
 )
 
 from loom_rotated_surface_code.utilities import FourBodySchedule
 
 
 # pylint: disable=duplicate-code
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
     """
     A sub-class of ``Block`` that represents a rotated surface code block.
@@ -76,9 +76,6 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         argument. By default, the top row and the left column are chosen as the logical
         operators. Their pauli string and whether they belong to the logical Z or X
         operator depends on the orientation of the boundaries.
-
-        # TODO: Add parameters for the logical operators if a user wants logical
-        operators which are different from the first row and column
 
         The coordinates used for data qubits are the following (here as an example for a
         d=3 rotated surface code, with ``x_boundary=Orientation.H`` and
@@ -694,6 +691,31 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
             if stab not in self.all_boundary_stabilizers
         )
 
+    @property
+    def orientation(self) -> Orientation | None:
+        """
+        Return the orientation of the block. If the block is square, return None.
+        """
+        if self.size[0] > self.size[1]:
+            return Orientation.HORIZONTAL
+        if self.size[0] < self.size[1]:
+            return Orientation.VERTICAL
+        return None
+
+    @property
+    def is_horizontal(self) -> bool:
+        """
+        Return True if the horizontal size is larger than the vertical size.
+        """
+        return self.orientation == Orientation.HORIZONTAL
+
+    @property
+    def is_vertical(self) -> bool:
+        """
+        Return True if the vertical size is larger than the horizontal size.
+        """
+        return self.orientation == Orientation.VERTICAL
+
     # Static methods
     @staticmethod
     def generate_weight4_stabs(
@@ -923,14 +945,14 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         )
 
     def get_corner_from_direction(
-        self, block: RotatedSurfaceCode, which_corner: DiagonalDirection
+        self, which_corner: DiagonalDirection
     ) -> tuple[int, int, int]:
         """
         Get the coordinates of the qubit at the specified corner of the block.
         """
         return (
-            set(block.boundary_qubits(which_corner.components[0]))
-            .intersection(block.boundary_qubits(which_corner.components[1]))
+            set(self.boundary_qubits(which_corner.components[0]))
+            .intersection(self.boundary_qubits(which_corner.components[1]))
             .pop()
         )
 
@@ -947,6 +969,7 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
                 Four topological corners coincide with 4 geometric corners
                 The list of corners is returned in the order:
                 (top-left, bottom-left, bottom-right, top-right)
+
                 Visualized example::
 
                     1-------4
@@ -962,6 +985,7 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
                 ends occupy only one topological corner
                 The list of corners is returned in the order:
                 (long_end, middle_edge, angle, short_end)
+
                 Visualized example (can be rotated)::
 
                     1-------|
@@ -977,11 +1001,32 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
                 ends occupy two topological corners.
                 The list of corners is returned in the order as seen below:
                 (long_end, middle_edge, angle, short_end)
+
                 Visualized example (can be rotated)::
 
                     1-------|
                     |       |
                     2       |
+                    |       |
+                    3-------4
+
+        Type 4: U-config (phase gate)
+                Block has rectangular shape with size (d, 2d) or (2d, d)
+                Three of four topological corners coincide with three geometric corners,
+                the last topological corner resides in the middle of the long edge whose
+                ends occupy only one topological corner. Since the length of a long edge
+                is even, there are two qubits near the middle point of the edge.
+                Only support the case where the qubit is further away from the end
+                occupied by a topological corner.
+                The list of corners is returned in the order:
+                (long_end, middle_edge, angle, short_end)
+
+                Visualized example (can be rotated)::
+
+                    1-------|
+                    |       |
+                    |       2
+                    |       |
                     |       |
                     3-------4
 
@@ -1006,8 +1051,10 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
             return 1, sorted(topological_geometric_corners)
 
         is_almost_two_squares = dx == 2 * dz - 1 or dz == 2 * dx - 1
+        is_two_squares = dx == 2 * dz or dz == 2 * dx
         is_ul_config = len(topological_geometric_corners) == 3 and is_almost_two_squares
-        if not is_ul_config:
+        is_uphase_config = len(topological_geometric_corners) == 3 and is_two_squares
+        if not (is_ul_config or is_uphase_config):
             # Type 0
             return 0, self.topological_corners
 
@@ -1033,14 +1080,29 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
             if corner not in long_edge_geometric_corners
         )
 
-        # Find the middle point of the long edge and verify that it is where the last
-        # topological corner is.
+        # Sort the long_edge_geometric_corners so that the first returned corner is
+        # the long_end.
+        long_edge_geometric_corners = sorted(
+            long_edge_geometric_corners,
+            reverse=topological_non_geometric_corner[long_edge_idx]
+            > short_edge_geometric_corner[long_edge_idx],
+        )
+
+        # Verify that the distances (along the long edge) between the last topological
+        # corner and two long_edge_corners differ by no larger than one unit.
         # If it's not, the config is not U or L
-        mid_point_long_edge = (
-            long_edge_geometric_corners[0][long_edge_idx]
-            + long_edge_geometric_corners[1][long_edge_idx]
-        ) / 2
-        if mid_point_long_edge != topological_non_geometric_corner[long_edge_idx]:
+        middle_long_dist = abs(
+            topological_non_geometric_corner[long_edge_idx]
+            - long_edge_geometric_corners[0][long_edge_idx]
+        )  # distance from middle_edge corner to long_end corner
+        middle_angle_dist = abs(
+            long_edge_geometric_corners[1][long_edge_idx]
+            - topological_non_geometric_corner[long_edge_idx]
+        )  # distance from angle_corner to middle_edge corner
+        dist_diff = (
+            middle_angle_dist - middle_long_dist
+        )  # no abs because only one case is supported
+        if dist_diff not in [0, 1]:
             # Type 0
             return 0, self.topological_corners
 
@@ -1050,27 +1112,25 @@ class RotatedSurfaceCode(Block):  # pylint: disable=too-many-public-methods
         if (
             topological_non_geometric_corner[short_edge_idx]
             == short_edge_geometric_corner[short_edge_idx]
-        ):
+        ) and dist_diff == 0:
             # Type 2 (U shape)
             config = 2
         elif (
             topological_non_geometric_corner[short_edge_idx]
             == long_edge_geometric_corners[0][short_edge_idx]
-        ):
+        ) and dist_diff == 0:
             # Type 3 (L shape)
             config = 3
+        elif (
+            topological_non_geometric_corner[short_edge_idx]
+            == short_edge_geometric_corner[short_edge_idx]
+        ) and dist_diff == 1:
+            # Type 4 (U shape phase gate)
+            config = 4
         else:
             raise RuntimeError("Something went wrong with the configuration detection.")
 
-        # Sort the long_edge_geometric_corners so that the first returned corner is
-        # the long_end.
-        long_edge_geometric_corners = sorted(
-            long_edge_geometric_corners,
-            reverse=topological_non_geometric_corner[long_edge_idx]
-            > short_edge_geometric_corner[long_edge_idx],
-        )
-
-        # Put all of the corners together
+        # Put all the corners together
         corners = (
             long_edge_geometric_corners[0],  # long_end
             topological_non_geometric_corner,  # middle_edge

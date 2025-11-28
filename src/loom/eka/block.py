@@ -31,6 +31,8 @@ from pydantic_core import ArgsKwargs
 from .stabilizer import Stabilizer
 from .pauli_operator import PauliOperator
 from .syndrome_circuit import SyndromeCircuit
+from .matrices import ParityCheckMatrix
+from .tanner_graphs import TannerGraph
 from .utilities.pauli_format_conversion import paulixz_to_char
 from .utilities.stab_array import (
     merge_stabarrays,
@@ -40,14 +42,14 @@ from .utilities.stab_array import (
     invert_bookkeeping_matrix,
 )
 from .utilities.validation_tools import (
-    dataclass_params,
+    dataclass_config,
     ensure_tuple,
     empty_list_error,
     retrieve_field,
 )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """
     Block describing one or multiple logical qubits. It is defined by a code type, a
@@ -717,6 +719,38 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
         }
 
         return pauli_charges
+
+    @cached_property
+    def parity_check_matrix(self) -> ParityCheckMatrix:
+        """
+        Return the parity check matrix of the Block.
+
+        Returns
+        -------
+        ParityCheckMatrix
+            The parity check matrix of the Block
+        """
+
+        # Generate the parity check matrix from the stabilizers
+        pc_matrix = ParityCheckMatrix(self.stabilizers)
+
+        return pc_matrix
+
+    @cached_property
+    def tanner_graph(self) -> TannerGraph:
+        """
+        Return the Tanner graph of the Block.
+
+        Returns
+        -------
+        TannerGraph
+            The Tanner graph of the Block
+        """
+
+        # Generate the tanner graph from the stabilizers
+        tanner_graph = TannerGraph(self.stabilizers)
+
+        return tanner_graph
 
     # Magic methods
     def __eq__(self, other) -> bool:

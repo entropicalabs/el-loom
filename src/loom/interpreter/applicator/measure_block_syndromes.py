@@ -131,7 +131,6 @@ def measureblocksyndromes(
     ]  # Maybe test for empty lists ???
 
     # Repeat for n_cycle:
-    # TODO: Use cycle to create the cbits?
     for _ in range(operation.n_cycles):
         #   B.3) - Find the classical channels (create them if they don't exist)
         #   and create cbits

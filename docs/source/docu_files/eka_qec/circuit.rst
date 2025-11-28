@@ -29,12 +29,12 @@ In circuits, we typically want to have operations acting on disjoint channels to
 **Important note**: When using parallel execution (i.e., providing a `tuple(tuple(Circuit, ...), ...)` as circuit parameter), the elements within the sequence of tuples will be executed on the step corresponding to their index in the sequence, regardless of the duration of the previous elements. This can lead to an unexpected error situation where 2 gates are applied to the same channel at the same time step. Loom leaves the user freedom on how to pad the circuit (you may use empty tuples to do so). The example below illustrates this:
 
 .. literalinclude:: ../../python/circuit/scheduling_issue.py
-   :language: python
+    :language: python
 
 The :class:`~loom.eka.circuit.Circuit` class provides a method to automatically pad the circuit by padding with empty tuples after elements of duration more than 1. This may result in a suboptimal circuit :
 
 .. literalinclude:: ../../python/circuit/auto_padding.py
-   :language: python
+    :language: python
 
 
 Utilities

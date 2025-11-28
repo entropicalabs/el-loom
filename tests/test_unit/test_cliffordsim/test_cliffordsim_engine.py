@@ -1080,8 +1080,6 @@ class TestCliffordSimEngine(
         self.assertTrue(isinstance(creg_snapshot_1, ClassicalRegisterSnapshot))
         self.assertTrue(isinstance(creg_snapshot_2, ClassicalRegisterSnapshot))
 
-        ### TODO: Case 4: Proper state recording for register mutated over time.
-
     def test_createclassicalnot(self):
         """
         Tests that a classical NOT operation is performed successfully on a classical

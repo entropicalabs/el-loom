@@ -856,31 +856,6 @@ class TestEkaCircuitToCudaqConverter(unittest.TestCase):
             with self.subTest(input=case.test_name):
                 self.run_convert_circuit_test(case)
 
-    # Test that a circuit provide the correct state vector.
-    # def test_state_vector(self):
-    #     """Test that a circuit provide the correct state vector."""
-    #     channels = get_n_qchannel(3)
-    #     circ = Circuit(
-    #         name="state_vector_test",
-    #         circuit=[
-    #             [
-    #                 Circuit(name="h", channels=channels[0]),
-    #                 Circuit(name="h", channels=channels[1]),
-    #             ],
-    #             [Circuit(name="cx", channels=[channels[1], channels[2]])],
-    #             [Circuit(name="cy", channels=[channels[0], channels[1]])],
-    #             [Circuit(name="phase", channels=[channels[0]])],
-    #         ],
-    #         channels=channels,
-    #     )
-    #     kernel, qr, cr = self.converter.convert_circuit(circ)
-    #     state = np.array(cudaq.get_state(kernel))
-
-    #     expected_state = np.array([0.5, 0, 0, -0.5, 0, 0.5, 0.5, 0]).astype(
-    #         np.complex128
-    #     )
-    #     self.assertTrue(np.allclose(state, expected_state, 1e-15))
-
     def test_return_register(self):
         """
         Test that the converter returns the correct quantum and classical registers.

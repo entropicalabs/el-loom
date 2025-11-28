@@ -14,4 +14,3 @@ Welcome to the **Loom Basics** documentation! This section will provide a quick 
    Build a Quantum correction experiment <loom_experiment.rst>
    Visualize stabilizers and qubits <loom_visualize.rst>
    Run an experiment <loom_run.rst>
-.. Analyze the results <loom_analyze.rst>

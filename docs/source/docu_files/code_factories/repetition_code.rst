@@ -43,9 +43,7 @@ Example of application :
 
 .. code-block:: python
 
-    import loom_repetition_code as loom_repc
-    from loom_repc.applicator import RepetitionCodeApplicator
-    from loom_repc.code_factory import RepetitionCode
+    from loom_repetition_code.code_factory import RepetitionCode
     from loom.eka import Eka, Lattice
     from loom.eka.operations import ResetAllDataQubits, MeasureBlockSyndromes, Shrink, Merge, MeasureLogicalZ
     from loom.interpreter import interpret_eka

@@ -49,14 +49,6 @@ class TestCopyrightChecker(pylint.testutils.CheckerTestCase):
         '"""\n'
     )
 
-    # copyright_full = (
-    #     '"""\nCopyright (c) Entropica Labs Pte Ltd 2025.\n\n'
-    #     "Use, distribution and reproduction of this program in its "
-    #     "source or compiled\nform is prohibited without the "
-    #     "express written consent of Entropica Labs Pte\nLtd."
-    #     '\n\n"""\n'
-    # )
-
     def test_missing_copyright(self):
         """Test that checker triggers when copyright message is missing."""
         self.mock_module.stream = lambda: io.BytesIO(b"def foo():\n    pass\n")

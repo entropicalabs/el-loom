@@ -280,7 +280,6 @@ def transversalhadamard(
         if "Y" not in each_stabilizer.pauli
     )
 
-    # TODO: Raises a ValueError if there is a Pauli Y Stabilizer. Message is vague and doesn't specify the exact Stabilizer that is problematic.
     if len(new_stabs) != len(block.stabilizers):
         raise ValueError(
             "One of the Stabilizer in the Block contains a Pauli Y, which is not supported by Hadamard."

@@ -18,16 +18,22 @@ limitations under the License.
 # pylint: disable=too-many-lines
 import unittest
 from pydantic import ValidationError
+import numpy as np
+import networkx as nx
 
 from loom.eka import (
     Block,
     Stabilizer,
     PauliOperator,
+    ParityCheckMatrix,
+    TannerGraph,
 )
 from loom.eka.utilities import loads, dumps, uuid_error
 
 
-class TestBlock(unittest.TestCase):  # pylint: disable=too-many-public-methods
+class TestBlock(
+    unittest.TestCase
+):  # pylint: disable=too-many-public-methods, too-many-instance-attributes
     """
     Test for the Block class.
     """
@@ -40,6 +46,8 @@ class TestBlock(unittest.TestCase):  # pylint: disable=too-many-public-methods
         # `Block.stabilizer_to_circuit` are not explicitly assigned, they are
         # automatically populated by validation checks in the `Block` class.
         # pylint: disable=duplicate-code
+
+        # Rotated surface code variables
         self.rotated_surface_code = Block(
             stabilizers=(
                 Stabilizer(
@@ -95,6 +103,130 @@ class TestBlock(unittest.TestCase):  # pylint: disable=too-many-public-methods
             ],
             unique_label="q1",
         )
+
+        # Steane code variables
+        data_supports_ham = [[0, 1, 2, 3], [1, 2, 4, 5], [2, 3, 5, 6]]
+        self.stabilizers_steane = [
+            Stabilizer(
+                pauli=p * 4,
+                data_qubits=[(d, 0) for d in support],
+                ancilla_qubits=[(i + 3 * j, 1)],
+            )
+            for i, support in enumerate(data_supports_ham)
+            for j, p in enumerate("XZ")
+        ]
+        logical_x_steane = PauliOperator(
+            pauli="X" * 7, data_qubits=[(i, 0) for i in range(7)]
+        )
+        logical_z_steane = PauliOperator(
+            pauli="Z" * 7, data_qubits=[(i, 0) for i in range(7)]
+        )
+
+        self.steane_block = Block(
+            stabilizers=self.stabilizers_steane,
+            logical_x_operators=[logical_x_steane],
+            logical_z_operators=[logical_z_steane],
+        )
+
+        h_hamming = np.array(
+            [[1, 1, 1, 1, 0, 0, 0], [0, 1, 1, 0, 1, 1, 0], [0, 0, 1, 1, 0, 1, 1]],
+            dtype=int,
+        )
+
+        self.h_steane = np.vstack(
+            (
+                np.hstack((h_hamming, np.zeros(h_hamming.shape, dtype=int))),
+                np.hstack((np.zeros(h_hamming.shape, dtype=int), h_hamming)),
+            )
+        )
+
+        datas_ham = list(range(7))
+        checks_ham = list(range(3))
+
+        # Add extra index to datas and checks to match stabilizer qubit format
+        x_nodes_steane = [((i, 1), {"label": "X"}) for i in checks_ham]
+        z_nodes_steane = [((i + 3, 1), {"label": "Z"}) for i in checks_ham]
+        data_nodes_steane = [((i, 0), {"label": "data"}) for i in datas_ham]
+
+        x_edges_steane = [
+            ((c, 1), (d, 0))
+            for c, supp in zip(checks_ham, data_supports_ham, strict=True)
+            for d in supp
+        ]
+        z_edges_steane = [((c[0] + 3, 1), d) for c, d in x_edges_steane]
+
+        self.g_steane = nx.Graph()
+        self.g_steane.add_nodes_from(x_nodes_steane)
+        self.g_steane.add_nodes_from(z_nodes_steane)
+        self.g_steane.add_nodes_from(data_nodes_steane)
+        self.g_steane.add_edges_from(x_edges_steane + z_edges_steane)
+
+        # Shor code variables
+        x_indices = [[(i + 3 * j, 0) for i in range(6)] for j in range(2)]
+        z_indices = [
+            [(i + j + 3 * k, 0) for i in range(2)] for k in range(3) for j in range(2)
+        ]
+        paulis = ["X" * 6, "Z" * 2]
+
+        self.stabilizers_shor = [
+            Stabilizer(
+                pauli=paulis[i],
+                data_qubits=data_qubits,
+                ancilla_qubits=[(j + 2 * i, 1)],
+            )
+            for i, indices in enumerate([x_indices, z_indices])
+            for j, data_qubits in enumerate(indices)
+        ]
+
+        logical_x_shor = PauliOperator(
+            pauli="X" * 9, data_qubits=[(i, 0) for i in range(9)]
+        )
+        logical_z_shor = PauliOperator(
+            pauli="Z" * 9, data_qubits=[(i, 0) for i in range(9)]
+        )
+
+        self.shor_block = Block(
+            stabilizers=self.stabilizers_shor,
+            logical_x_operators=[logical_x_shor],
+            logical_z_operators=[logical_z_shor],
+        )
+
+        hx_shor = np.array([[1, 1, 1, 1, 1, 1, 0, 0, 0], [0, 0, 0, 1, 1, 1, 1, 1, 1]])
+        hz_shor = np.array(
+            [
+                [1, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 1, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 1],
+            ]
+        )
+        self.h_shor = np.vstack(
+            (
+                np.hstack((hx_shor, np.zeros(hx_shor.shape, dtype=int))),
+                np.hstack((np.zeros(hz_shor.shape, dtype=int), hz_shor)),
+            )
+        )
+
+        self.g_shor = nx.Graph()
+
+        # Add extra index to datas and checks to match stabilizer qubit format
+        data_nodes_shor = [((i, 0), {"label": "data"}) for i in range(9)]
+        x_nodes_shor = [((i, 1), {"label": "X"}) for i in range(2)]
+        z_nodes_shor = [((i + 2, 1), {"label": "Z"}) for i in range(6)]
+
+        x_edges_shor = [((i, 1), (j + 3 * i, 0)) for i in range(2) for j in range(6)]
+        z_edges_shor = [
+            ((i + 2, 1), (j + 3 * (i // 2) + (i % 2), 0))
+            for i in range(6)
+            for j in range(2)
+        ]
+
+        self.g_shor.add_nodes_from(x_nodes_shor)
+        self.g_shor.add_nodes_from(z_nodes_shor)
+        self.g_shor.add_nodes_from(data_nodes_shor)
+        self.g_shor.add_edges_from(x_edges_shor + z_edges_shor)
 
     def test_creation_valid_block(self):
         """
@@ -1120,6 +1252,44 @@ class TestBlock(unittest.TestCase):  # pylint: disable=too-many-public-methods
             expected_label = {"space_coordinates": stabilizer.ancilla_qubits[0]}
             label = self.rotated_surface_code.get_stabilizer_label(stabilizer.uuid)
             self.assertEqual(label, expected_label)
+
+    def test_parity_check_matrix(self):
+        """Test the parity_check_matrix property."""
+
+        # EXAMPLE 1: Steane code
+        pcm_steane = ParityCheckMatrix(self.h_steane)
+
+        # EXAMPLE 2: Shor code
+        pcm_shor = ParityCheckMatrix(self.h_shor)
+
+        # Verify validity
+        block_list = [self.steane_block, self.shor_block]
+        pcm_list = [pcm_steane, pcm_shor]
+
+        for block, correct_pcm in zip(block_list, pcm_list, strict=True):
+            pcm = block.parity_check_matrix
+
+            # Check equality with manually created parity-check matrix
+            self.assertEqual(pcm, correct_pcm)
+
+    def test_tanner_graph(self):
+        """Test the tanner_graph property."""
+
+        # EXAMPLE 1: Steane code
+        tanner_steane = TannerGraph(self.g_steane)
+
+        # EXAMPLE 2: Shor code
+        tanner_shor = TannerGraph(self.g_shor)
+
+        # Verify validity
+        block_list = [self.steane_block, self.shor_block]
+        tanner_list = [tanner_steane, tanner_shor]
+
+        for block, correct_tanner_graph in zip(block_list, tanner_list, strict=True):
+            tanner_graph = block.tanner_graph
+
+            # Check equality with manually created tanner graph
+            self.assertEqual(tanner_graph, correct_tanner_graph)
 
 
 if __name__ == "__main__":

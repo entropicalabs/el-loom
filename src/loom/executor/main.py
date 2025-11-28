@@ -38,11 +38,6 @@ def convert_circuit_to_cliffordsim(
     the labels of the classical channels. The first set of letters, separated by an _,
     in the label of the classical channel is the name of the classical register.
 
-    TODO: Resolved Mapping Issue but external requirement of data qubit map as input
-    might be an issue. Maybe dqubit_dict or the final output from extract_qubits should
-    be information "uploaded" onto the CRD as well. (As this contains information about
-    the ancilla qubit which was previously not available. i.e. what qubit indices are they)
-
 
     Parameter
     ---------

@@ -1163,7 +1163,6 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
         Test a standard merge workflow.
         """
         lattice = Lattice.square_2d((10, 10))
-        initial_step = deepcopy(self.base_step)
         block_1 = RotatedSurfaceCode.create(
             dx=3,
             dz=3,
@@ -1183,15 +1182,18 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=lattice,
             unique_label="merged",
         )
-        initial_step.block_history = ((block_1, block_2),)
-        initial_step.logical_x_operator_updates = {
-            block_1.logical_x_operators[0].uuid: (("dummy_X_left", 0),),
-            block_2.logical_x_operators[0].uuid: (("dummy_X_right", 0),),
-        }
-        initial_step.logical_z_operator_updates = {
-            block_1.logical_z_operators[0].uuid: (("dummy_Z_left", 0),),
-            block_2.logical_z_operators[0].uuid: (("dummy_Z_right", 0),),
-        }
+        # Define interpretation step
+        initial_step = InterpretationStep(
+            block_history=((block_1, block_2),),
+            logical_x_operator_updates={
+                block_1.logical_x_operators[0].uuid: (("dummy_X_left", 0),),
+                block_2.logical_x_operators[0].uuid: (("dummy_X_right", 0),),
+            },
+            logical_z_operator_updates={
+                block_1.logical_z_operators[0].uuid: (("dummy_Z_left", 0),),
+                block_2.logical_z_operators[0].uuid: (("dummy_Z_right", 0),),
+            },
+        )
         merge_op = Merge(["standard2", "standard1"], "merged")
         interpretation_step = merge(
             initial_step, merge_op, same_timeslice=False, debug_mode=True

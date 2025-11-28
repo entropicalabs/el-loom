@@ -31,6 +31,7 @@ from loom.interpreter import InterpretationStep, Syndrome
 from loom.eka.utilities import SyndromeMissingError
 
 
+# pylint: disable=too-many-lines
 class TestInterpretationStep(unittest.TestCase):
     """
     Test for the InterpretationStep class.
@@ -919,6 +920,326 @@ class TestInterpretationStep(unittest.TestCase):
             (f"c_{self.rot_surf_code_1.stabilizers[1].ancilla_qubits[0]}", 0),
         )
         self.assertEqual(cbits, expected_cbits)
+
+    def test_composite_operation_sessions(self):
+        """
+        Tests the begin_composite_operation_session_MUT and
+        end_composite_operation_session_MUT functions.
+        """
+        step = InterpretationStep(
+            block_history=[
+                [self.rot_surf_code_1, self.rot_surf_code_2],
+            ]
+        )
+        had0 = Circuit(
+            name="h",
+            channels=[step.get_channel_MUT(self.rot_surf_code_1.data_qubits[0])],
+        )
+        # Initially, no composite operation sessions
+        self.assertEqual(step.composite_operation_session_stack, [])
+
+        with self.assertRaises(ValueError) as cm:
+            step.end_composite_operation_session_MUT()
+        self.assertIn(
+            "No composite operation session to end. Please begin a session first.",
+            str(cm.exception),
+        )
+
+        # Create a composite operation session
+        step.begin_composite_operation_session_MUT(
+            same_timeslice=False, circuit_name="ses0_circuit_name"
+        )
+        ses0 = step.composite_operation_session_stack[-1]
+        self.assertEqual(ses0.start_timeslice_index, 0)
+
+        # Append a circuit of duration 1 to the step
+        ses_0_circuit_to_append = Circuit(name="1 hadamard", circuit=[[had0.clone()]])
+        step.append_circuit_MUT(ses_0_circuit_to_append)
+
+        # Begin a second composite operation session
+        step.begin_composite_operation_session_MUT(
+            same_timeslice=False, circuit_name="ses1_circuit_name"
+        )
+        ses1 = step.composite_operation_session_stack[-1]
+        self.assertEqual(ses1.start_timeslice_index, 1)
+        self.assertEqual(step.composite_operation_session_stack, [ses0, ses1])
+
+        # Append a circuit of duration 2 to the step
+        ses_1_circuit_to_append = Circuit(
+            name="2 hadamards", circuit=[[had0.clone()], [had0.clone()]]
+        )
+        step.append_circuit_MUT(ses_1_circuit_to_append)
+
+        # End the last session first and append the circuit back to the step
+        ses_1_circuit = step.end_composite_operation_session_MUT()
+        step.append_circuit_MUT(ses_1_circuit, False)
+        # End the first session and append the circuit back to the step
+        ses_0_circuit = step.end_composite_operation_session_MUT()
+        step.append_circuit_MUT(ses_0_circuit, False)
+
+        # Check that the popped ses0_circuit is correct
+        self.assertEqual(
+            ses_0_circuit,
+            Circuit(
+                name="ses0_circuit_name",
+                circuit=[
+                    [had0.clone()],
+                    [had0.clone()],
+                    [had0.clone()],
+                ],
+            ),
+        )
+
+        # Check that the circuits have the right names and durations
+        self.assertEqual(ses_1_circuit.name, "ses1_circuit_name")
+        self.assertEqual(ses_1_circuit.duration, ses_1_circuit_to_append.duration)
+        self.assertEqual(ses_0_circuit.name, "ses0_circuit_name")
+        self.assertEqual(
+            ses_0_circuit.duration,
+            ses_0_circuit_to_append.duration + ses_1_circuit.duration,
+        )
+        self.assertEqual(step.composite_operation_session_stack, [])
+
+    def test_timestamp_method_simple_ops(self):
+        """
+        Tests the get_timestamp method function of the InterpretationStep class.
+
+        "circuit_a": |--3--|                                time = 3
+        "circuit_b":       |--2--|                          time = 5
+        "circuit_c":       |-----5-----|                    time = 8
+        "circuit_d":       |---3---|                        time = 6
+        "circuit_e":                   |---3---|            time = 11
+        """
+        step = InterpretationStep(
+            block_history=[
+                [self.rot_surf_code_1, self.rot_surf_code_2],
+            ]
+        )
+        circuit_list = [
+            Circuit("hadamard", channels=[step.get_channel_MUT(q)])
+            for q in self.rot_surf_code_1.qubits + self.rot_surf_code_2.qubits
+        ]
+
+        # No circuits added yet, time should be 0
+        self.assertEqual(step.get_timestamp(), 0)
+
+        # - circuit_a
+        step.append_circuit_MUT(
+            Circuit(
+                name="circuit_a",
+                circuit=[circuit_list[0], circuit_list[1], circuit_list[2]],
+            ),
+            same_timeslice=False,
+        )
+        self.assertEqual(step.get_timestamp(), 3)
+
+        # - circuit_b
+        step.append_circuit_MUT(
+            Circuit(
+                name="circuit_b",
+                circuit=[circuit_list[3], circuit_list[4]],
+            ),
+            same_timeslice=False,
+        )
+        self.assertEqual(step.get_timestamp(), 5)
+
+        # - circuit_c
+        step.append_circuit_MUT(
+            Circuit(
+                name="circuit_c",
+                circuit=[circuit_list[i] for i in range(5, 10)],
+            ),
+            same_timeslice=True,
+        )
+        self.assertEqual(step.get_timestamp(), 8)
+
+        # - circuit_d
+        step.append_circuit_MUT(
+            Circuit(
+                name="circuit_d",
+                circuit=[circuit_list[10], circuit_list[11], circuit_list[12]],
+            ),
+            same_timeslice=True,
+        )
+        self.assertEqual(step.get_timestamp(), 6)
+
+        # - circuit_e
+        step.append_circuit_MUT(
+            Circuit(
+                name="circuit_e",
+                circuit=[circuit_list[13], circuit_list[14], circuit_list[15]],
+            ),
+            same_timeslice=False,
+        )
+        self.assertEqual(step.get_timestamp(), 11)
+
+    def test_timestamp_method_composite_ops(self):
+        """
+        Tests the get_timestamp method function of the InterpretationStep class in
+        presence of composite operation sessions.
+
+        Base circuit:
+            "some circuit":                   |--2--|                       time = 2
+
+        Session 0:
+                "ses0 circuit":                     |---------9---------|   time = 11
+
+        Session 1:
+                "ses1 first circuit":               |--2--|                 time = 4
+
+                Nested session 0:
+                        "parallel circuit_0":             |----4----|       time = 8
+                Nested session 1:
+                        "parallel circuit_1":             |--2--|           time = 6
+                Nested session 2:
+                        "parallel circuit_2":             |-----5-----|     time = 9
+                Nested session 3:
+                        "parallel circuit_3":             |-1-|             time = 5
+
+        NOTE: Session ses1 has same_timeslice=True, so its circuit runs in parallel
+        with the circuit of ses0. Also, it doesn't end until after all parallel
+        circuits have ended.
+
+        After all parallel circuits:
+        - After closing ses1: time = 9
+        """
+        # SetUp the InterpretationStep and get some Circuits to work with
+        step = InterpretationStep(
+            block_history=[
+                [self.rot_surf_code_1, self.rot_surf_code_2],
+            ]
+        )
+        circuit_list = [
+            Circuit("hadamard", channels=[step.get_channel_MUT(q)])
+            for q in self.rot_surf_code_1.qubits + self.rot_surf_code_2.qubits
+        ]
+
+        # No circuits added yet, time should be 0
+        current_time = 0
+        self.assertEqual(step.get_timestamp(), 0)
+
+        # Append a Circuit of duration 2 and check that time is updated correctly
+        step.append_circuit_MUT(
+            Circuit(
+                name="some circuit",
+                circuit=[circuit_list[0], circuit_list[1]],
+            )
+        )
+        current_time = 2
+        self.assertEqual(step.get_timestamp(), current_time)
+
+        # --- Begin Session 0 ---
+        step.begin_composite_operation_session_MUT(
+            same_timeslice=False, circuit_name="ses0_circuit_name"
+        )
+        # Append a Circuit of duration 9
+        step.append_circuit_MUT(
+            Circuit(
+                name="ses0 circuit",
+                circuit=[circuit_list[i] for i in range(2, 2 + 9)],
+            )
+        )
+        current_time = 11
+        self.assertEqual(step.get_timestamp(), current_time)
+        ses0_circuit = step.end_composite_operation_session_MUT()
+        step.append_circuit_MUT(ses0_circuit, False)
+        # --- End Session 0 ---
+
+        # --- Begin Session 1 ---
+
+        # Start another session in parallel with previous one with same_timeslice=True
+        step.begin_composite_operation_session_MUT(
+            same_timeslice=True, circuit_name="ses1 circuit"
+        )
+        # Append a Circuit of duration 2 that will run in the same timeslice as the
+        # previous circuit
+        step.append_circuit_MUT(
+            Circuit(
+                name="ses1 first circuit",
+                circuit=[circuit_list[11], circuit_list[12]],
+            )
+        )
+        current_time = 2 + 2
+        self.assertEqual(step.get_timestamp(), current_time)
+
+        # Now we shall start and end some sessions that will be in parallel
+        nested_sessions_args_list = [
+            # First session needs to have same_timeslice = False because it is the first
+            # session running in parallel
+            {"duration": 4, "same_timeslice": False, "time_after": 8},
+            {"duration": 2, "same_timeslice": True, "time_after": 6},
+            {"duration": 5, "same_timeslice": True, "time_after": 9},
+            {"duration": 1, "same_timeslice": True, "time_after": 5},
+        ]
+
+        circuit_list_idx = 13
+        for idx, session_args in enumerate(nested_sessions_args_list):
+            # --- Begin Nested Session {idx} ---
+            step.begin_composite_operation_session_MUT(
+                same_timeslice=session_args["same_timeslice"],
+                circuit_name=f"parallel_circuit_name_{idx}",
+            )
+            # Append a Circuit of the specified duration
+            step.append_circuit_MUT(
+                Circuit(
+                    name=f"parallel circuit {idx}",
+                    circuit=[
+                        [circuit_list[circuit_list_idx + i]]
+                        for i in range(session_args["duration"])
+                    ],
+                )
+            )
+            circuit_list_idx += session_args["duration"]
+
+            # Since these run in parallel to the previous circuit, time should be -
+            # previous duration + new duration
+            self.assertEqual(step.get_timestamp(), session_args["time_after"])
+            # End the last session and append the circuit back to the step
+            ses_circuit = step.end_composite_operation_session_MUT()
+            step.append_circuit_MUT(ses_circuit, session_args["same_timeslice"])
+            # --- End Nested Session {idx} ---
+
+        # Finally, end Session 1 and check that the time is updated correctly
+        ses1_circuit = step.end_composite_operation_session_MUT()
+        step.append_circuit_MUT(ses1_circuit, True)
+        # Since Session 1 was the last thing that was appended to the step, the
+        # timestamp should correspond to the end of Session 1 circuit, i.e. 9
+        self.assertEqual(step.get_timestamp(), 9)
+
+        # --- End Session 1 ---
+
+    def test_append_circuit_mut_raises_error_sessions(self):
+        """
+        Test that append_circuit_MUT raises a ValueError when trying to add the first
+        circuit of a composite operation to the same timeslice.
+        """
+        # 1. Initialize an InterpretationStep
+        step = InterpretationStep()
+
+        # 2. Append an initial circuit
+        initial_circuit = Circuit(name="initial")
+        step.append_circuit_MUT(initial_circuit, same_timeslice=False)
+
+        # 3. Start a new composite operation session
+        composite_circuit_name = "composite_op"
+        step.begin_composite_operation_session_MUT(
+            same_timeslice=False, circuit_name=composite_circuit_name
+        )
+
+        # 4. Attempt to append another circuit with same_timeslice=True
+        # This should fail because it's the first circuit of a new composite session.
+        next_circuit = Circuit(name="next")
+        expected_error_msg = (
+            "The first circuit of a composite operation session cannot be "
+            "added to the same timeslice as the previous circuit. Please set "
+            "same_timeslice to False for the first circuit of composite operation "
+            f"with circuit name '{composite_circuit_name}'."
+        )
+
+        # 5. Assert that the expected ValueError is raised
+        with self.assertRaises(ValueError) as cm:
+            step.append_circuit_MUT(next_circuit, same_timeslice=True)
+        self.assertIn(expected_error_msg, str(cm.exception))
 
 
 if __name__ == "__main__":

@@ -17,11 +17,11 @@ limitations under the License.
 
 from pydantic.dataclasses import dataclass
 
-from loom.eka.utilities import Direction, dataclass_params
+from loom.eka.utilities import Direction, dataclass_config
 from loom.eka.operations import CodeOperation
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class AuxCNOT(CodeOperation):
     """
     Apply a CNOT operation between two blocks using a grow-split-merge-shrink sequence.
@@ -35,7 +35,7 @@ class AuxCNOT(CodeOperation):
     input_blocks_name: tuple[str, str]
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class TransversalHadamard(CodeOperation):
     """
     Apply a Transversal Hadamard on a block.
@@ -50,7 +50,7 @@ class TransversalHadamard(CodeOperation):
 
 
 # pylint: disable=line-too-long
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class MoveBlock(CodeOperation):
     """
     Move the selected block 1 unit in the chosen direction in a fault-tolerant manner.
@@ -80,7 +80,7 @@ class MoveBlock(CodeOperation):
     direction: Direction
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalPhaseViaYwall(CodeOperation):
     """
     Apply a logical phase gate to a RotatedSurfaceCode block by:
@@ -92,9 +92,6 @@ class LogicalPhaseViaYwall(CodeOperation):
     2. Moving corners
     3. Measuring a wall of qubits in the Y basis
     4. Getting the block back to its original size
-
-    TODO: To be able to freely specify the direction of growth, we need boundary
-    rotation such that we can change the orientation of the X boundary.
 
     Parameters
     ----------
@@ -111,7 +108,7 @@ class LogicalPhaseViaYwall(CodeOperation):
     growth_direction: Direction
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class RotateBlock(CodeOperation):
     """
     Rotate a block by 90 degrees in a fault-tolerant manner. This modifies both the bulk

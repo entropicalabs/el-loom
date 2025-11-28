@@ -202,39 +202,6 @@ class TestInterpreterRSC(unittest.TestCase):
         final_step = interpret_eka(auxcnot_eka)
         self.assertTrue(isinstance(final_step, InterpretationStep))
 
-        # # Test Transversal Hadamard operation
-        # operations = [
-        #     TransversalHadamard(input_block_name="q1"),
-        # ]
-        # eka_with_ops = Eka(
-        #     self.lattice,
-        #     blocks=[self.rsc_code_1],
-        #     operations=operations,
-        # )
-        # final_step = interpret_eka(eka_with_ops)
-        # self.assertTrue(isinstance(final_step, InterpretationStep))
-
-        # # Test MoveBlock operation
-        # operations = [
-        #     MoveBlock(
-        #         input_block_name="q1",
-        #         direction="right",
-        #     ),
-        # ]
-        # eka_with_ops = Eka(
-        #     self.lattice,
-        #     blocks=[self.rsc_code_1],
-        #     operations=operations,
-        # )
-        # final_step = interpret_eka(eka_with_ops)
-        # self.assertTrue(isinstance(final_step, InterpretationStep))
-
-        # TODO: Refactor this test with a dictionary so that we can easily add cases # pylint: disable=fixme
-        # TODO: Add test case for LogicalPhaseViaYwall # pylint: disable=fixme
-        # TODO: Add test case for StateInjection # pylint: disable=fixme
-        # TODO: Add test case for MoveCorner operation # pylint: disable=fixme
-        # TODO: Add tests for YWallOut operation # pylint: disable=fixme
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -25,7 +25,7 @@ from pydantic.dataclasses import dataclass
 from .circuit import Circuit, Channel
 from .utilities.validation_tools import (
     pauli_error,
-    dataclass_params,
+    dataclass_config,
     retrieve_field,
     no_name_error,
 )
@@ -71,7 +71,7 @@ def default_circuit(pauli_str: str) -> Circuit:
     )
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class SyndromeCircuit:
     """
     A SyndromeCircuit object specifies one way to measure a pauli string.

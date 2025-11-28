@@ -19,11 +19,9 @@ from typing import Union
 import uuid
 
 from pydantic import ValidationInfo
+from pydantic import ConfigDict
 
-dataclass_params = {
-    "frozen": True,
-    "config": {"extra": "forbid"},
-}
+dataclass_config = ConfigDict(frozen=True, extra="forbid")
 
 
 def coordinate_length_error(

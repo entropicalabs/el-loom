@@ -66,8 +66,9 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             lattice=self.lattice,
             unique_label="t",
         )
-        self.base_step = InterpretationStep()
-        self.base_step.block_history = ((self.control, self.target),)
+        self.base_step = InterpretationStep(
+            block_history=((self.control, self.target),)
+        )
 
     def test_op_aux_cnot(self):
         """Test the creation of an AuxCNOT operation"""

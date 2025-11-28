@@ -1,3 +1,5 @@
+from loom.executor import EkaCircuitToStimConverter
+
 converter = EkaCircuitToStimConverter()
 
 # interpreted_eka: InterpretationStep

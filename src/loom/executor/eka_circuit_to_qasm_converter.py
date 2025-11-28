@@ -469,7 +469,6 @@ def convert_circuit_to_qasm(
                     string_list.append(string)
 
             # instructions to add barriers
-            # TODO: Improve barrier placement. Currently too many!
             data_indices = ", ".join(
                 f"data_qreg[{i}]" for i in range(len(data_qubits_map))
             )

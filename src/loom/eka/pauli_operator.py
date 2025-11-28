@@ -25,7 +25,7 @@ import numpy as np
 from .utilities.validation_tools import (
     nr_of_qubits_error,
     distinct_error,
-    dataclass_params,
+    dataclass_config,
     ensure_tuple,
     coordinate_length_error,
     pauli_error,
@@ -34,7 +34,7 @@ from .utilities.pauli_format_conversion import paulichar_to_xz, paulixz_to_char_
 from .utilities.pauli_binary_vector_rep import SignedPauliOp
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class PauliOperator:
     """
     A PauliOperator is defined by a pauli string, and a set of data qubits.

@@ -25,10 +25,13 @@ The final circuits are then simulated using Stim to validate that the logical qu
                 MeasureBlockSyndromes(rsc_block_1.unique_label, n_cycles=1),
             ),
             (   # Syndromes: Information collection
+                # (not technically necessary in a noiseless experiment)
                 MeasureBlockSyndromes(rsc_block_1.unique_label, n_cycles=2),
             ),
             (   # Measure logicals
-                MeasureLogicalZ(rsc_block_1.unique_label) if state in ["0", "1"] else MeasureLogicalX(rsc_block_1.unique_label),
+                MeasureLogicalZ(rsc_block_1.unique_label) 
+                if state in ["0", "1"] 
+                else MeasureLogicalX(rsc_block_1.unique_label),
             ),
         )
 
@@ -107,9 +110,9 @@ We will use the PyMatching package to decode the detector outcomes, and use MatP
 
     from loom.executor import noise_annotated_stim_circuit
     import pymatching as pym
-        
+
     stim_nsamples = 1_000_000
-    noise_rates = [10**(i) for i in np.linspace(-3.5, -2, 5)]
+    noise_rates = [10 ** (i) for i in np.linspace(-3.5, -2, 5)]
 
     converter = EkaCircuitToStimConverter()
 
@@ -152,13 +155,13 @@ We will use the PyMatching package to decode the detector outcomes, and use MatP
                 label="LER",
             )
             col.plot(
-            noise_rates,
-            noise_rates,
-            marker="x",
-            linestyle="-",
-            label="y=x",
-            color="lightblue",
-            alpha=0.5,
+                noise_rates,
+                noise_rates,
+                marker="x",
+                linestyle="-",
+                label="y=x",
+                color="lightblue",
+                alpha=0.5,
             )
 
             col.set_title(f"|{states_list[2 * i + j]}>_L")
@@ -176,3 +179,108 @@ We will use the PyMatching package to decode the detector outcomes, and use MatP
 .. figure:: ../../../_static/code_factories_rsc_error_rate.png
     :width: 760
     :align: center
+
+Simple noiseless bell state experiment
+--------------------------------------
+
+We provide a simple example of how to initialize a logical bell state using lattice surgery operations on a distance-3 rotated surface code block.
+The experiment grows and splits the block into two while performing syndrome measurements, before finally measuring the logical qubits in the X and Z basis.
+The final circuits are then simulated using Stim to validate that the logical qubits behave as expected.
+
+.. code-block:: python
+
+    from loom.eka.utilities import Direction, Orientation
+
+    # Create a rotated surface code block
+    rsc_block_1 = RotatedSurfaceCode.create(3, 3, lattice, 
+                                            unique_label="rsc_block_1")
+
+    # Add some operations on the blocks
+    logicals_names = ["XX_L", "ZZ_L"]
+
+    # Create two circuits, each measuring a different logical operator
+    interpreted_circ_list = []
+    for logicals in logicals_names:
+        operations = (
+            (   # Encode pt1: Reset all data qubits
+                ResetAllDataQubits(rsc_block_1.unique_label, state="+"),
+            ),
+            (   # Encode pt2: Encode data qubits via measurements
+                MeasureBlockSyndromes(rsc_block_1.unique_label, n_cycles=1),
+            ),
+            (   # Lengthen the block along X boundary
+                Grow(rsc_block_1.unique_label, Direction.RIGHT, length=4),
+            ),
+            (   # Syndromes: Information collection
+                MeasureBlockSyndromes(rsc_block_1.unique_label, n_cycles=1),
+            ),
+            (   # Split the block into two d=3 blocks
+                Split(rsc_block_1.unique_label, ("rsc_block_1_a", "rsc_block_1_b"),
+                    Orientation.VERTICAL, split_position=3),
+            ),
+            (   # Syndromes: Information collection
+                MeasureBlockSyndromes("rsc_block_1_a", n_cycles=1),
+                MeasureBlockSyndromes("rsc_block_1_b", n_cycles=1),
+            ),
+            (   # Measure logicals
+                (MeasureLogicalX("rsc_block_1_a"), MeasureLogicalX("rsc_block_1_b"),) 
+                if logicals == "XX_L"
+                else (MeasureLogicalZ("rsc_block_1_a"), MeasureLogicalZ("rsc_block_1_b"),)
+            )
+        )
+
+        eka_obj = Eka(lattice, blocks=[rsc_block_1], operations=operations)
+        interpreted = interpret_eka(eka_obj)
+
+        interpreted_circ_list.append(interpreted)
+        
+    # STIM settings
+    stim_nsamples = 1000
+
+    converter = EkaCircuitToStimConverter()
+    for index, interpreted in enumerate(interpreted_circ_list):
+        stim_circ = converter.convert(interpreted)
+
+        # Sample the Stim circuit
+        sampler = stim_circ.compile_sampler()
+        samples = sampler.sample(shots=stim_nsamples)
+
+        # Get counts
+        obs_samples = []
+        for sample_id in 2, 1:
+            obs_instr = stim_circ[-sample_id]
+            meas_indices = [rec.value for rec in obs_instr.targets_copy()]
+            obs_samples.append(np.bitwise_xor.reduce(samples[:, meas_indices], axis=1))
+            
+        # Combine observables
+        samp = np.bitwise_xor.reduce(obs_samples, axis=0)
+
+        # Get logical counts
+        unique_el, counts = np.unique(samp, return_counts=True)
+        
+        output = {"0": 0, "1": 0}
+        for i in range(len(unique_el)):
+            output[str(int(unique_el[i]))] = counts[i].item()
+            
+        # Print output for each circuit
+        print(f"Circuit{index + 1} {logicals_names[index]}: {output}")
+
+        # Get detector flips
+        det_samples_list = []
+        for stim_det in range(1, stim_circ.num_detectors + 1):
+            det_instr = stim_circ[-stim_det - stim_circ.num_observables]
+            meas_indices = [rec.value for rec in det_instr.targets_copy()]
+            det_samples = np.bitwise_xor.reduce(samples[:, meas_indices], axis=1)
+
+            det_samples_list.append(sum(det_samples))
+
+        # Print unique detector flips
+        print("Detector flips: ", sum(det_samples_list))
+        print()
+
+    ## Expected output:
+    # Circuit1 XX_L: {'0': 1000, '1': 0}
+    # Detector flips:  0
+
+    # Circuit2 ZZ_L: {'0': 1000, '1': 0}
+    # Detector flips:  0

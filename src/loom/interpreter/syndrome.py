@@ -20,12 +20,12 @@ from uuid import uuid4
 
 from pydantic.fields import Field
 from pydantic.dataclasses import dataclass
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 from .utilities import Cbit
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Syndrome:
     """
     A syndrome is the measurement result of a stabilizer. This dataclass does not

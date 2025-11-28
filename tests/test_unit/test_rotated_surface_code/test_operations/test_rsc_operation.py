@@ -42,36 +42,6 @@ class TestCodeOperation(unittest.TestCase):
         self.assertEqual(aux_cnot, loads(AuxCNOT, dumps(aux_cnot)))
         self.assertEqual(aux_cnot, loads(Operation, dumps(aux_cnot)))
 
-    # TODO: Add tests for LogicalPhaseViaYwall # pylint: disable=fixme
-    # def test_logical_phase_via_ywall(self):
-    #     """Test the creation of a LogicalPhaseViaYwall operation"""
-
-    # TODO: Add tests for MoveBlock # pylint: disable=fixme
-    # def test_move_block(self):
-    #     """Test the creation of a MoveBlock operation"""
-
-    # TODO: Add tests for MoveCorner # pylint: disable=fixme
-    # def test_move_corner(self):
-    #     """Test the creation of a MoveCorner operation"""
-
-    # TODO: Add tests for YWallOut # pylint: disable=fixme
-    # def test_ywall_out(self):
-    #     """Test the creation of a YWallOut operation"""
-
-    # TODO: Fix TransversalHadamard operation # pylint: disable=fixme
-    # def test_transversal_hadamard(self):
-    #     """Test the creation of a transversal hadamard operation"""
-
-    #     # Test the creation of a transversal hadamard operation
-    #     hadamard = TransversalHadamard(input_block_name="q1")
-    #     self.assertEqual(hadamard.input_block_name, "q1")
-    #     self.assertEqual(hadamard.__class__.__name__, "TransversalHadamard")
-    #     self.assertEqual(hadamard._inputs, ("q1",))
-    #     self.assertEqual(hadamard._outputs, ("q1",))
-    #     # Test the loads/dumps both using the right class and the abstract base class
-    #     self.assertEqual(hadamard, loads(TransversalHadamard, dumps(hadamard)))
-    #     self.assertEqual(hadamard, loads(Operation, dumps(hadamard)))
-
 
 if __name__ == "__main__":
     unittest.main()

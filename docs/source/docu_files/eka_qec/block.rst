@@ -79,16 +79,49 @@ Once we have defined all the different components, we can assemble them together
   from loom.eka import Block
 
   my_rep_code = Block(
-      code_type="custom",
       unique_label="qubit_1",
       stabilizers=repetition_stabs,
       logical_x_operators=[x_op],
       logical_z_operators=[z_op],
       syndrome_circuits=[zz_circuit],
-      stabilizer_to_syndrome_circuit=stab_to_circuit,
+      stabilizer_to_circuit=stab_to_circuit,
   )
 
 This process can be automated and we provide multiple code factories for well-known codes.
+
+.. admonition:: Click me to see the full example!
+    :collapsible: closed
+
+    .. code-block:: python
+
+      from loom.eka import Lattice, SyndromeCircuit, Stabilizer, PauliOperator, Block
+
+      linear_lattice = Lattice.linear(lattice_size=(3,))
+
+      repetition_stabs = [
+          Stabilizer(pauli="ZZ", data_qubits=((i, 0), (i + 1, 0)), ancilla_qubits=((i, 1),))
+          for i in range(2)
+      ]
+
+      x_op = PauliOperator(pauli="Z", data_qubits=((0, 0),))
+      z_op = PauliOperator(pauli="XXX", data_qubits=((0, 0), (1, 0), (2, 0)))
+
+      zz_circuit = SyndromeCircuit(
+          pauli="ZZ",
+          name="zz",
+          circuit=None,  # This creates a default circuit to measure the given pauli string
+      )
+
+      stab_to_circuit = {stab.uuid: zz_circuit.uuid for stab in repetition_stabs}
+
+      my_rep_code = Block(
+          unique_label="qubit_1",
+          stabilizers=repetition_stabs,
+          logical_x_operators=[x_op],
+          logical_z_operators=[z_op],
+          syndrome_circuits=[zz_circuit],
+          stabilizer_to_circuit=stab_to_circuit,
+      )
 
 Validations
 ^^^^^^^^^^^

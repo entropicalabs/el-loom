@@ -709,40 +709,6 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
                 self.assertEqual(cut_stab, None)
                 self.assertEqual(stab_evol, {})
 
-    # NOTE an error is thrown in boundary_type
-    # RuntimeError: Boundary has multiple Pauli charges.
-    # This should not happen for the standard rotated surface code block.
-    # The boundary pauli charges (excluding Y charges) are ['Z', 'X'].
-
-    # def test_find_new_boundary_stabilizers_twisted_block(self):
-    #     """Test the find_new_boundary_stabilizers function for the twisted block."""
-
-    #     # We only test for the qubit located in the middle of right boundary
-    #     test_args = {
-    #         # Set of parameters to move the middle corner up
-    #         "corner_qubit": (4, 4, 0),
-    #         "modified_boundary_direction": Direction.RIGHT,
-    #         "unit_vector": (0, -1),
-    #         "how_far": 2,  # Even because there is no 2-body
-    #         "two_body_is_included": False,
-    #     }
-    #     expected_output = (
-    #         [
-    #             stab
-    #             for stab in self.twisted_rsc_block.all_boundary_stabilizers
-    #             if not all(
-    #                 q in [(4, 4, 0), (4, 3, 0), (4, 2, 0)] for q in stab.data_qubits
-    #             )
-    #         ],
-    #         [Stabilizer("XX", [(4, 4, 0), (4, 3, 0)], ancilla_qubits=[(5, 4, 1)])],
-    #         None,
-    #         {},
-    #     )
-    #     output = find_new_boundary_stabilizers(
-    #         block=self.twisted_rsc_block, **test_args
-    #     )
-    #     self.assertEqual(output, expected_output)
-
     def test_move_corner_logical_operators(self):  # pylint: disable=too-many-locals
         """
         Test the move_corners_logical_operators function.

@@ -29,4 +29,3 @@ from .state_injection import state_injection
 
 # from .transversalhadamard import transversalhadamard
 from .y_wall_out import y_wall_out
-from .y_wall_out_circuit import map_stabilizer_schedule

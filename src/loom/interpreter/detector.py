@@ -18,13 +18,13 @@ limitations under the License.
 import json
 
 from pydantic.dataclasses import dataclass, Field
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 from .syndrome import Syndrome
 from .utilities import Cbit
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Detector:
     """
     A detector is the parity of multiple syndromes. This dataclass does not store the

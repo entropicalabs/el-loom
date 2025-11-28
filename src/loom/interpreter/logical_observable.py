@@ -18,12 +18,12 @@ limitations under the License.
 from __future__ import annotations
 
 from pydantic.dataclasses import dataclass
-from loom.eka.utilities import dataclass_params
+from loom.eka.utilities import dataclass_config
 
 from .utilities import Cbit
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class LogicalObservable:
     """
     Once a logical operator is measured, the details of the measurement are stored in

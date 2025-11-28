@@ -1,6 +1,6 @@
 [project]
 name = "el-loom"
-version = "0.1.3"
+version = "0.2.0"
 description = "An integrated software platform designed to handle the complexities of quantum error correction, seamlessly transforming applications into fault-tolerant, hardware-ready versions."
 authors = [
     { name = "Entropica Labs Pte Ltd", email = "info@entropicalabs.com" },

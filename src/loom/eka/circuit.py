@@ -28,7 +28,7 @@ from .channel import Channel, ChannelType
 from .utilities.serialization import apply_to_nested
 from .utilities.validation_tools import (
     uuid_error,
-    dataclass_params,
+    dataclass_config,
     distinct_error,
     ensure_tuple,
     retrieve_field,
@@ -39,7 +39,7 @@ logging.basicConfig(format="%(name)s - %(levelname)s - %(message)s")
 log = logging.getLogger(__name__)
 
 
-@dataclass(**dataclass_params)
+@dataclass(config=dataclass_config)
 class Circuit:
     """
     A serializable, recursive circuit representation. Previously defined circuit
@@ -99,7 +99,7 @@ class Circuit:
         """
         if isinstance(circuit, Circuit):
             return ((circuit,),)
-        if circuit in ((), []):
+        if not circuit:  # base gate
             return ()
         # The default interpretation of a list of circuit input is sequential execution
         # of the gates in the list.
@@ -187,7 +187,7 @@ class Circuit:
         match (len(circuit) == 0, len(channels) == 0):
             # (True, _) if base gate (no nested circuits)
             case (True, True):
-                return (Channel(),)
+                return ()
             case (True, False):
                 return distinct_error(channels)
             case (False, True):
@@ -364,7 +364,7 @@ class Circuit:
         new_circ = apply_to_nested(circuit, make_circ, cmap)
         return cls(name, new_circ)
 
-    def clone(self, channels: list[Channel] = None) -> Circuit:
+    def clone(self, channels: list[Channel] | None = None) -> Circuit:
         """
         Convenience method to clone a circuit structure that was defined before.
 
@@ -434,7 +434,7 @@ class Circuit:
                 The circuit to be updated.
 
             channel_map: dict[str, Channel]
-                The channel map to used for looking up the new circuit's channels.
+                The channel map used for looking up the new circuit's channels.
 
             Returns
             -------
@@ -442,6 +442,23 @@ class Circuit:
                 The updated circuit.
             """
             new_channels = [channel_map[channel.id] for channel in circuit.channels]
+
+            # If this is an IfElseCircuit (detected via the marker), rebuild it
+            # by recursively updating its branches. We avoid importing the
+            # IfElseCircuit class here to prevent circular imports by using
+            # `type(circuit)` to construct the new instance.
+            if hasattr(circuit, "_loom_ifelse_marker"):
+                # update branches recursively
+                new_if = update_sub_circuit(circuit.if_circuit, channel_map)
+                new_else = update_sub_circuit(circuit.else_circuit, channel_map)
+                new_cond = update_sub_circuit(circuit.condition_circuit, channel_map)
+
+                # construct new IfElseCircuit using the actual runtime class
+                return type(circuit)(
+                    if_circuit=new_if, else_circuit=new_else, condition_circuit=new_cond
+                )
+
+            # Regular Circuit: rebuild with updated subcircuits and channels
             return Circuit(
                 circuit.name,
                 tuple(
@@ -450,7 +467,7 @@ class Circuit:
                 ),
                 new_channels,
                 circuit.duration,
-                # channels can't be infered here, since order of channels in this list
+                # channels can't be inferred here, since order of channels in this list
                 # matters.
             )
 
@@ -463,7 +480,7 @@ class Circuit:
 
     def nr_of_qubits_in_circuit(self):
         """
-        Returns the number of qubits in the circuit.
+        Returns the number of qubits used in the circuit across all branches.
 
         Parameters
         ----------
@@ -509,6 +526,8 @@ class Circuit:
                 # subcircuits, it must be a physical gate and it is added to the
                 # flattened circuit array
                 flat_circuit.append(next_circuit)
+            elif hasattr(next_circuit, "_loom_ifelse_marker"):  # IfElseCircuit marker
+                flat_circuit.append(next_circuit.flatten())
             else:
                 for tick in next_circuit.circuit:
                     for circ in tick:
@@ -550,6 +569,9 @@ class Circuit:
             # added to the final sequence
             if not circ.circuit:  # Base gate
                 unrolled_circuit_time_sequence[time] += (circ,)
+            # And if the circuit is an IfElseCircuit, use child unroll method
+            elif hasattr(circ, "_loom_ifelse_marker"):
+                unrolled_circuit_time_sequence[time] += circ.unroll(circ)
             # Else it's a composite circuit and is added to the stack
             # with the associated time index
             else:
@@ -558,6 +580,7 @@ class Circuit:
                         stack.append((time + i, sub_circ))
         return tuple(unrolled_circuit_time_sequence)
 
+    # pylint: disable=too-many-return-statements
     def __eq__(self, other) -> bool:
         """
         Check whether two circuits perform the same gate sequence. I.e. check if the
@@ -628,6 +651,10 @@ class Circuit:
                     sorted((gate for gate in time_slice2), key=lambda x: x.name),
                     strict=False,
                 ):
+                    if hasattr(gate1, "_loom_ifelse_marker") or hasattr(
+                        gate2, "_loom_ifelse_marker"
+                    ):
+                        return gate1 == gate2
                     # The two timeslices must have the same gates (names)
                     if gate1.name != gate2.name:
                         log.info(
@@ -687,7 +714,11 @@ class Circuit:
             # Omit ticks occupied by empty tuples or lower level circuits
             # (i.e. not base gates)
             if len(tick) != 0:
-                tick_str += f"{i}: {' '.join(gate.name for gate in tick)}\n"
+                for gate in tick:
+                    if hasattr(gate, "_loom_ifelse_marker"):
+                        tick_str += f"{i}: {gate.__repr__()}\n"
+                    else:
+                        tick_str += f"{i}: " + gate.name + "\n"
         # Delete the last newline character
         tick_str = tick_str[:-1]
         return tick_str
@@ -701,9 +732,12 @@ class Circuit:
         for i, tick in enumerate(self.circuit):
             tick_str += f"{i}: "
             for gate in tick:
-                tick_str += f"{gate.name} - "
-                tick_str += f"{' '.join(str(chan.label) for chan in gate.channels)}"
-                tick_str += "\n"
+                if hasattr(gate, "_loom_ifelse_marker"):
+                    tick_str += gate.detailed_str()
+                else:
+                    tick_str += f"{gate.name} - "
+                    tick_str += f"{' '.join(str(chan.label) for chan in gate.channels)}"
+                    tick_str += "\n"
         return tick_str
 
     @staticmethod

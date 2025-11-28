@@ -16,11 +16,9 @@ limitations under the License.
 """
 
 from .block import Block
-from .circuit import (
-    Circuit,
-    ChannelType,
-    Channel,
-)
+from .channel import Channel, ChannelType
+from .circuit import Circuit
+from .ifelse_circuit import IfElseCircuit
 from .circuit_algorithms import (
     coloration_circuit,
     cardinal_circuit,

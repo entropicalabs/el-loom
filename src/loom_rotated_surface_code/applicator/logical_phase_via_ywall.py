@@ -148,20 +148,19 @@ def logical_phase_via_ywall(
         same_timeslice=False,
         debug_mode=debug_mode,
     )
+    current_block = interpretation_step.get_block(init_block.unique_label)
+
+    # Measure block syndromes to finalize Grow
+    interpretation_step = measureblocksyndromes(
+        interpretation_step,
+        MeasureBlockSyndromes(init_block.unique_label, distance),
+        same_timeslice=False,
+        debug_mode=debug_mode,
+    )
 
     # If the growth direction is towards the negative direction, the Z logical operator
     # needs to be moved to the new top-left qubit of the block.
     if is_growth_towards_negative:
-
-        current_block = interpretation_step.get_block(init_block.unique_label)
-        # Measure block syndromes to get missing syndromes
-        interpretation_step = measureblocksyndromes(
-            interpretation_step,
-            MeasureBlockSyndromes(init_block.unique_label, distance),
-            same_timeslice=False,
-            debug_mode=debug_mode,
-        )
-
         # Move the Z logical operator to the new position
         interpretation_step, current_block = move_logical(
             interpretation_step,
@@ -226,7 +225,12 @@ def logical_phase_via_ywall(
     current_block = interpretation_step.get_block(init_block.unique_label)
 
     interpretation_step = y_wall_out(
-        interpretation_step, current_block, wall_position, wall_orientation, debug_mode
+        interpretation_step,
+        current_block,
+        wall_position,
+        wall_orientation,
+        same_timeslice=False,
+        debug_mode=debug_mode,
     )
 
     ## G) Move all topological corners back to their geometric positions and
@@ -272,17 +276,27 @@ def logical_phase_via_ywall(
     # Corner 2 arguments
     corner_2_args = (corner_2_location, corner_2_move_direction, corner_2_how_far)
 
-    # Move the corners
-    interpretation_step = move_corners(
-        interpretation_step=interpretation_step,
-        block=current_block,
-        corner_args=(
-            corner_1_args,
-            corner_2_args,
-        ),
-        same_timeslice=False,
-        debug_mode=debug_mode,
-    )
+    # Move the corners one-by-one
+    for corner_args in (corner_1_args, corner_2_args):
+        # Move the corner
+        interpretation_step = move_corners(
+            interpretation_step=interpretation_step,
+            block=current_block,
+            corner_args=(corner_args,),
+            same_timeslice=False,
+            debug_mode=debug_mode,
+        )
+        # Obtain the new current_block
+        current_block = interpretation_step.get_block(init_block.unique_label)
+        # Measure block syndromes to ensure that the moving of corners is FT
+        # move_corners already measured the syndromes once, so we can just measure them
+        # (distance - 1) times
+        interpretation_step = measureblocksyndromes(
+            interpretation_step,
+            MeasureBlockSyndromes(init_block.unique_label, distance - 1),
+            same_timeslice=False,
+            debug_mode=debug_mode,
+        )
 
     # If the growth direction is towards the negative direction, the block needs to
     # be grown by one unit towards the opposite direction of the growth direction
@@ -294,6 +308,14 @@ def logical_phase_via_ywall(
         interpretation_step = grow(
             interpretation_step,
             Grow(init_block.unique_label, growth_direction.opposite(), 1),
+            same_timeslice=False,
+            debug_mode=debug_mode,
+        )
+        # Measure the syndromes of the block such that the block is projected onto
+        # the new stabilizers after the growth.
+        interpretation_step = measureblocksyndromes(
+            interpretation_step,
+            MeasureBlockSyndromes(init_block.unique_label, distance),
             same_timeslice=False,
             debug_mode=debug_mode,
         )
@@ -311,6 +333,14 @@ def logical_phase_via_ywall(
         same_timeslice=False,
         debug_mode=debug_mode,
     )
+    # Measure the syndromes of the block such that the block is projected onto
+    # the new stabilizers after the shrink.
+    interpretation_step = measureblocksyndromes(
+        interpretation_step,
+        MeasureBlockSyndromes(init_block.unique_label, distance),
+        same_timeslice=False,
+        debug_mode=debug_mode,
+    )
 
     ## I) Relocate the x logical operator to the initial position
     # The x logical operator is moved back to its original position.
@@ -321,22 +351,10 @@ def logical_phase_via_ywall(
     )
 
     # Move the x logical operator back to the original position
-    try:
-        interpretation_step, current_block = move_logical(
-            interpretation_step, current_block, final_x_log_op_top_left_qubit, "X"
-        )
-    except SyndromeMissingError:
-        # Measure block syndromes to get missing syndromes
-        interpretation_step = measureblocksyndromes(
-            interpretation_step,
-            MeasureBlockSyndromes(init_block.unique_label, distance),
-            same_timeslice=False,
-            debug_mode=debug_mode,
-        )
-        # Move the x logical operator back to the original position
-        interpretation_step, current_block = move_logical(
-            interpretation_step, current_block, final_x_log_op_top_left_qubit, "X"
-        )
+    # Syndromes will always be available, so no need for catching exception here
+    interpretation_step, current_block = move_logical(
+        interpretation_step, current_block, final_x_log_op_top_left_qubit, "X"
+    )
 
     ## J) Wrap the circuit in a single circuit with the correct duration and empty
     # timeslices
