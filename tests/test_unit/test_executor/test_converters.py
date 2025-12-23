@@ -21,6 +21,7 @@ from loom.eka.channel import Channel, ChannelType
 from loom.eka.circuit import Circuit
 from loom.executor import (
     EkaToStimConverter,
+    EkaToGuppylangConverter,
     EkaToPennylaneConverter,
     EkaToQasmConverter,
     EkaToMimiqConverter,
@@ -35,6 +36,7 @@ class TestConverters:
         EkaToPennylaneConverter(is_catalyst=False),
         EkaToPennylaneConverter(is_catalyst=True),
         EkaToQasmConverter(),
+        EkaToGuppylangConverter(),
         EkaToStimConverter(),
         EkaToMimiqConverter(),
         EkaToCudaqConverter(),

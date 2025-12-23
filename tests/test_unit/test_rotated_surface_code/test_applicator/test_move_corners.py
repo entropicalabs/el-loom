@@ -63,8 +63,8 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
             unique_label="q1",
             weight_2_stab_is_first_row=True,
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.rot_surf_code_1,),),
+        self.base_step = InterpretationStep.create(
+            [self.rot_surf_code_1],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stabilizer.uuid,
@@ -709,6 +709,40 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
                 self.assertEqual(cut_stab, None)
                 self.assertEqual(stab_evol, {})
 
+    # NOTE an error is thrown in boundary_type
+    # RuntimeError: Boundary has multiple Pauli charges.
+    # This should not happen for the standard rotated surface code block.
+    # The boundary pauli charges (excluding Y charges) are ['Z', 'X'].
+
+    # def test_find_new_boundary_stabilizers_twisted_block(self):
+    #     """Test the find_new_boundary_stabilizers function for the twisted block."""
+
+    #     # We only test for the qubit located in the middle of right boundary
+    #     test_args = {
+    #         # Set of parameters to move the middle corner up
+    #         "corner_qubit": (4, 4, 0),
+    #         "modified_boundary_direction": Direction.RIGHT,
+    #         "unit_vector": (0, -1),
+    #         "how_far": 2,  # Even because there is no 2-body
+    #         "two_body_is_included": False,
+    #     }
+    #     expected_output = (
+    #         [
+    #             stab
+    #             for stab in self.twisted_rsc_block.all_boundary_stabilizers
+    #             if not all(
+    #                 q in [(4, 4, 0), (4, 3, 0), (4, 2, 0)] for q in stab.data_qubits
+    #             )
+    #         ],
+    #         [Stabilizer("XX", [(4, 4, 0), (4, 3, 0)], ancilla_qubits=[(5, 4, 1)])],
+    #         None,
+    #         {},
+    #     )
+    #     output = find_new_boundary_stabilizers(
+    #         block=self.twisted_rsc_block, **test_args
+    #     )
+    #     self.assertEqual(output, expected_output)
+
     def test_move_corner_logical_operators(self):  # pylint: disable=too-many-locals
         """
         Test the move_corners_logical_operators function.
@@ -1145,8 +1179,8 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
             lattice=self.square_2d_lattice,
             unique_label="q5x5",
         )
-        int_step = InterpretationStep(
-            block_history=((big_block,),),
+        int_step = InterpretationStep.create(
+            [big_block],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -1517,8 +1551,8 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
             ((4, 4, 0), Direction.BOTTOM, 4),
             ((0, 4, 0), Direction.TOP, 4),
         )
-        int_step = InterpretationStep(
-            block_history=((big_block,),),
+        int_step = InterpretationStep.create(
+            [big_block],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -1691,8 +1725,8 @@ class TestRotatedSurfaceCodeMoveCorners(unittest.TestCase):
             ((0, 2, 0), Direction.TOP, 2),
             ((2, 4, 0), Direction.LEFT, 2),
         )
-        int_square_step = InterpretationStep(
-            block_history=((square_block,),),
+        int_square_step = InterpretationStep.create(
+            [square_block],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,

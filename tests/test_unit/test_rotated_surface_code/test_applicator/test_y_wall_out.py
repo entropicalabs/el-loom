@@ -58,8 +58,8 @@ class TestRotatedSurfaceCodeYWallOut(
 
         # Get the twisted block v5z by moving the topological corner instead
         self.move_corner_step_v5z = move_corners(
-            interpretation_step=InterpretationStep(
-                block_history=((self.big_block_v5z,),),
+            interpretation_step=InterpretationStep.create(
+                [self.big_block_v5z],
                 syndromes=tuple(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -136,8 +136,8 @@ class TestRotatedSurfaceCodeYWallOut(
         )
 
         self.twisted_rsc_block_v5x_with_wrong_x_logical = move_corners(
-            interpretation_step=InterpretationStep(
-                block_history=((self.big_block_v5x,),),
+            interpretation_step=InterpretationStep.create(
+                [self.big_block_v5x],
                 syndromes=tuple(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -229,8 +229,8 @@ class TestRotatedSurfaceCodeYWallOut(
         )
 
         self.twisted_rsc_block_h5x_with_wrong_x_logical = move_corners(
-            interpretation_step=InterpretationStep(
-                block_history=((self.big_block_h5x,),),
+            interpretation_step=InterpretationStep.create(
+                [self.big_block_h5x],
                 syndromes=tuple(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -276,8 +276,8 @@ class TestRotatedSurfaceCodeYWallOut(
         )
 
         self.move_corner_step_v3z = move_corners(
-            interpretation_step=InterpretationStep(
-                block_history=((self.big_block_v3z,),),
+            interpretation_step=InterpretationStep.create(
+                [self.big_block_v3z],
                 syndromes=tuple(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -301,8 +301,8 @@ class TestRotatedSurfaceCodeYWallOut(
     @staticmethod
     def base_interpretation_step(block):
         """Create a base interpretation step for the given block."""
-        return InterpretationStep(
-            block_history=((block,),),
+        return InterpretationStep.create(
+            [block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -731,8 +731,8 @@ class TestRotatedSurfaceCodeYWallOut(
             (self.twisted_rsc_block_h5x, (5, Orientation.VERTICAL)),
             (self.twisted_rsc_block_v3z, (3, Orientation.HORIZONTAL)),
         ]:
-            int_step = InterpretationStep(
-                block_history=((block,),),
+            int_step = InterpretationStep.create(
+                [block],
             )
             # Measure the syndromes of the initial block
             int_step = measureblocksyndromes(

@@ -16,7 +16,9 @@ limitations under the License.
 """
 
 # pylint: disable=too-many-lines
+from __future__ import annotations
 from itertools import compress
+from collections.abc import Sequence
 
 from pydantic.dataclasses import dataclass
 from pydantic import Field
@@ -31,7 +33,7 @@ from loom.eka.operations import LogicalMeasurement
 from .syndrome import Syndrome
 from .detector import Detector
 from .logical_observable import LogicalObservable
-from .block_history import BlockHistory
+from .block_history import BlockHistory, BlocksAlreadySeenError, BlocksNotPresentError
 from .utilities import Cbit, CompositeOperationSession
 
 
@@ -53,7 +55,7 @@ def check_frozen(func):
 
 
 @dataclass
-class InterpretationStep:  # pylint: disable=too-many-instance-attributes
+class InterpretationStep:  # pylint: disable=too-many-instance-attributes,too-many-public-methods
     """
     The `InterpretationStep` class stores all relevant information which was
     generated during interpretation up to the `Operation` which is currently
@@ -87,19 +89,13 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         The final circuit object which is generated after interpreting all operations.
         This is the circuit which is used for the final output of the interpretation, it
         is generated automatically by interpreting all operations.
-    block_history : tuple[tuple[Block, ...], ...]
-        A history of block configurations. The last element in the tuple is the current
-        configuration of blocks. With the interpretation of every `Operation` a new
-        tuple of blocks is added to this `block_history` field. While mostly only the
-        last configuration of blocks is relevant, the whole history is stored which
-        might be useful for plotting.
-    block_history_new : BlockHistory
+    block_history : BlockHistory
         A `BlockHistory` object which keeps track of the block UUIDs present at every
         timestamp.
     block_registry : dict[str, Block]
         A dictionary storing all Block objects which have been created during the
         interpretation. The keys are the UUIDs of the blocks. This is used to retrieve
-        block objects based on their UUIDs which are stored in the `block_history_new`
+        block objects based on their UUIDs which are stored in the `block_history`
         field.
     syndromes : tuple[Syndrome, ...]
         A tuple of `Syndrome`s which are created due to all syndrome extraction cycles
@@ -194,6 +190,24 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         Some applicators may pop the entries from the stabilizer_updates field of the
         interpretation step to compute corrections. This may cause issues in the future
         if the information in this field also needs to be accessed somewhere else.
+    reset_single_qubit_stabilizers: dict[str, set[Stabilizer]]
+        A dictionary storing the qubits that need to be reset before the support
+        of a stabilizer or logical operator is increased. Elements will be added here
+        when new data qubits need to be initialized before they are added to a block,
+        for example in a grow or merge operation.
+        The qubits are stored as single-qubit stabilizers, i.e. stabilizers containing
+        a single data qubit.
+        The keys of the dictionary are block uuids and the values are sets of
+        single-qubit stabilizers.
+    measured_single_qubit_stabilizers: dict[str, set[Stabilizer]]
+        A dictionary storing the qubits that need to be measured when the support
+        of a stabilizer or logical operator is reduced. Elements will be added here
+        when measured data qubits are removed from a block, for example in a shrink
+        or split operation.
+        The qubits are stored as single-qubit stabilizers, i.e. stabilizers containing
+        a single data qubit.
+        The keys of the dictionary are block uuids and the values are sets of
+        single-qubit stabilizers.
     channel_dict : dict[str, Channel]
         A dictionary storing all channels which have been created during the
         interpretation. The keys are the labels of the channels (which are either the
@@ -220,12 +234,9 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     final_circuit: Circuit | None = Field(
         default=None, validate_default=False, init=False
     )
-    block_history: tuple[tuple[Block, ...], ...] = Field(
-        default_factory=tuple, validate_default=True
-    )
-    block_history_new: BlockHistory = Field(init=False)
+    block_history: BlockHistory = Field()
     block_registry: dict[str, Block] = Field(
-        default_factory=dict, validate_default=True, init=False
+        default_factory=dict, validate_default=True
     )
     syndromes: tuple[Syndrome, ...] = Field(
         default_factory=tuple, validate_default=True
@@ -264,6 +275,12 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     stabilizer_updates: dict[str, tuple[Cbit, ...]] = Field(
         default_factory=dict, validate_default=True
     )
+    reset_single_qubit_stabilizers: dict[str, set[Stabilizer]] = Field(
+        default_factory=dict, validate_default=True
+    )
+    measured_single_qubit_stabilizers: dict[str, set[Stabilizer]] = Field(
+        default_factory=dict, validate_default=True
+    )
     channel_dict: dict[str, Channel] = Field(
         default_factory=dict, validate_default=True
     )
@@ -278,14 +295,40 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     )
     is_frozen: bool = False
 
-    def __post_init__(self):
-        # Initialize block_registry and block_history_new
-        initial_blocks = self.block_history[-1] if self.block_history else ()
-        # Set the block_registry dictionaries based on
-        # initial_blocks
-        self.block_registry = {block.uuid: block for block in initial_blocks}
-        self.block_history_new = BlockHistory.create(
-            set(block.uuid for block in initial_blocks)
+    @classmethod
+    def create(cls, initial_blocks: Sequence[Block], **kwargs) -> InterpretationStep:
+        """
+        Create a new InterpretationStep with the given initial blocks. It is also
+        possible to provide additional fields as keyword arguments for testing purposes.
+
+        Parameters
+        ----------
+        initial_blocks : Sequence[Block]
+            The blocks which are present at the beginning of the interpretation.
+
+        Returns
+        -------
+        InterpretationStep
+            New InterpretationStep instance
+        """
+        if not isinstance(initial_blocks, Sequence):
+            raise TypeError(
+                f"Type {type(initial_blocks)} not supported for initial_blocks "
+                f"parameter. It must be a Sequence of Block objects."
+            )
+        if not all(isinstance(block, Block) for block in initial_blocks):
+            raise TypeError("All elements of initial_blocks must be Block objects.")
+        if not len(initial_blocks) == len(set(block.uuid for block in initial_blocks)):
+            raise ValueError("All blocks in initial_blocks must have distinct UUIDs.")
+
+        block_history = BlockHistory.create(
+            blocks_at_0={block.uuid for block in initial_blocks}
+        )
+        block_registry = {block.uuid: block for block in initial_blocks}
+        return cls(
+            block_history=block_history,
+            block_registry=block_registry,
+            **kwargs,
         )
 
     def get_block(self, label: str) -> Block:
@@ -302,18 +345,37 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         Block
             Block with the given label
         """
-        for block in self.block_history[-1]:
+        for block_uuid in self.block_history.blocks_at(self.get_timestamp()):
+            block = self.block_registry[block_uuid]
             if block.unique_label == label:
                 return block
         raise RuntimeError(
             f"No block with label '{label}' found in the current configuration."
         )
 
+    def get_blocks_at_index(self, index: int) -> tuple[Block, ...]:
+        """
+        Get the blocks present at the given index in the block history. The order of the
+        blocks is not guaranteed within the returned tuple.
+
+        Parameters
+        ----------
+        index : int
+            Index in the block history to get the blocks from
+
+        Returns
+        -------
+        tuple[Block, ...]
+            Blocks present at the given index
+        """
+        block_uuids = self.block_history.block_uuids_at_index(index)
+        return tuple(self.block_registry[block_uuid] for block_uuid in block_uuids)
+
     @check_frozen
     def update_block_history_and_evolution_MUT(  # pylint: disable=invalid-name
         self,
-        new_blocks: tuple[Block, ...] = tuple(),
-        old_blocks: tuple[Block, ...] = tuple(),
+        new_blocks: Sequence[Block] = tuple(),
+        old_blocks: Sequence[Block] = tuple(),
         update_evolution: bool = True,
     ) -> None:
         """
@@ -322,39 +384,68 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
         to True, the new blocks are added to the evolution with the assumption that
         they are correlated to all previous blocks, e.g. two blocks merged in one.
         For more subtle operations, one can play with the evolution flag, e.g. resetting
-        the state of a block creates a nw block not related to the previous one (for
+        the state of a block creates a new block not related to the previous one (for
         detector generation).
 
         NOTE: This function has side effects on the current InterpretationStep! The
-        `block_history`, `block_evolution`, `block_registry`,and `block_history_new`
-        fields are updated.
+        `block_history`, `block_evolution`, and `block_registry` fields are updated.
 
 
         Parameters
         ----------
-        new_blocks : tuple[Block, ...]
+        new_blocks : Sequence[Block]
             New blocks to be added to the block history and evolution
-        old_blocks : tuple[Block, ...]
+        old_blocks : Sequence[Block]
             Old blocks to be removed from the block history and evolution
         update_evolution : bool
             Flag that enables the addition of the new and old blocks to the block
             evolution.
         """
-        current_block_ids = tuple(block.uuid for block in self.block_history[-1])
-        # Test for existence of old blocks
-        for old_block in old_blocks:
-            if old_block.uuid not in current_block_ids:
-                raise ValueError(
-                    f"Block '{old_block.unique_label}' is not in the current block "
-                    "configuration."
+        # Validation of input types
+        for arg in [new_blocks, old_blocks]:
+            if not isinstance(arg, Sequence):
+                raise TypeError(
+                    f"Type {type(arg)} not supported for new_blocks/old_blocks "
+                    f"parameter. It must be a Sequence of Block objects."
                 )
-        # Test for non-existence of new blocks
-        for new_block in new_blocks:
-            if new_block.uuid in current_block_ids:
-                raise ValueError(
-                    f"Block '{new_block.unique_label}' is already in the current block "
-                    "configuration."
+            if not all(isinstance(block, Block) for block in arg):
+                raise TypeError(
+                    "All elements of new_blocks/old_blocks must be Block objects."
                 )
+            # Ensure all blocks have distinct UUIDs
+            if not len(arg) == len(set(block.uuid for block in arg)):
+                raise ValueError(
+                    "All blocks in new_blocks/old_blocks must have distinct UUIDs."
+                )
+
+        # Update block_registry dictionary
+        self.block_registry |= {block.uuid: block for block in new_blocks}
+
+        # Update BlockHistory object
+        try:
+            self.block_history.update_blocks_MUT(
+                timestamp=self.get_timestamp(),
+                old_blocks=set(block.uuid for block in old_blocks),
+                new_blocks=set(block.uuid for block in new_blocks),
+            )
+        except BlocksNotPresentError as e:
+            # Reraise with more informative message
+            block_labels = [
+                block.unique_label for block in old_blocks if block.uuid in e.blocks
+            ]
+            raise RuntimeError(
+                "Failed to update block history. Some old_blocks are not present "
+                f"in the current block configuration: {block_labels}."
+            ) from e
+        except BlocksAlreadySeenError as e:
+            # Reraise with more informative message
+            block_labels = [
+                block.unique_label for block in new_blocks if block.uuid in e.blocks
+            ]
+            raise RuntimeError(
+                "Failed to update block history. Some new_blocks have already been "
+                f"present in the block history: {block_labels}."
+            ) from e
 
         # Update block evolution
         if old_blocks and new_blocks and update_evolution:
@@ -364,25 +455,6 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
                     for new_block in new_blocks
                 }
             )
-
-        new_state_of_blocks = (
-            tuple(
-                block
-                for block in self.block_history[-1]
-                if block.uuid not in (old_block.uuid for old_block in old_blocks)
-            )
-            + new_blocks
-        )
-        self.block_history += (new_state_of_blocks,)
-
-        # Update BlockHistory object
-        self.block_history_new.update_blocks(
-            timestamp=self.get_timestamp(),
-            old_blocks=set(block.uuid for block in old_blocks),
-            new_blocks=set(block.uuid for block in new_blocks),
-        )
-        # Update block_registry dictionary
-        self.block_registry |= {block.uuid: block for block in new_blocks}
 
     @check_frozen
     def update_logical_operator_updates_MUT(  # pylint: disable=invalid-name
@@ -443,6 +515,102 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
                 logical_updates[logical_operator_id] = ()
             # Add the new updates to the logical operator update
             logical_updates[logical_operator_id] += new_updates
+
+    @check_frozen
+    def update_reset_single_qubit_stabilizers_MUT(  # pylint: disable=invalid-name
+        self,
+        block_id: str,
+        new_single_qubit_stabilizers: set[Stabilizer],
+    ) -> None:
+        """
+        Update the reset_single_qubit_stabilizers dictionary with the provided
+        single-qubit stabilizers for the specified block.
+
+        NOTE: This function has side effects on the current InterpretationStep! The
+        `reset_single_qubit_stabilizers` field is updated.
+
+        Parameters
+        ----------
+        block_id : str
+            The uuid of the block associated with the provided single-qubit stabilizers.
+        new_single_qubit_stabilizers : set[Stabilizer]
+            New single-qubit stabilizers to be associated with the specified block
+        """
+        # Check that the provided stabilizers are single-qubit stabilizers
+        for stabilizer in new_single_qubit_stabilizers:
+            if not isinstance(stabilizer, Stabilizer):
+                raise TypeError(
+                    f"Invalid single-qubit stabilizer: '{stabilizer}'. Must be of type "
+                    "`Stabilizer`"
+                )
+            if len(stabilizer.data_qubits) != 1:
+                raise ValueError(
+                    "Each single-qubit stabilizer must contain exactly one data qubit."
+                )
+
+        # Check that the specified block exists at the current timestep
+        if block_id not in self.block_history.block_uuids_at_index(-1):
+            raise ValueError(
+                f"Block {block_id} not present at current timestep in block history."
+            )
+
+        # Retrieve the existing stabilizers for the block
+        current_single_qubit_stabilizers = self.reset_single_qubit_stabilizers.get(
+            block_id, set()
+        )
+
+        # Update reset_single_qubit_stabilizers
+        self.reset_single_qubit_stabilizers[block_id] = (
+            current_single_qubit_stabilizers | new_single_qubit_stabilizers
+        )
+
+    @check_frozen
+    def update_measured_single_qubit_stabilizers_MUT(  # pylint: disable=invalid-name
+        self,
+        block_id: str,
+        new_single_qubit_stabilizers: set[Stabilizer],
+    ) -> None:
+        """
+        Update the measured_single_qubit_stabilizers dictionary with the provided
+        single-qubit stabilizers for the specified block.
+
+        NOTE: This function has side effects on the current InterpretationStep! The
+        `measured_single_qubit_stabilizers` field is updated.
+
+        Parameters
+        ----------
+        block_id : str
+            The uuid of the block associated with the provided single-qubit stabilizers.
+        new_single_qubit_stabilizers : set[Stabilizer]
+            New single-qubit stabilizers to be associated with the specified block
+        """
+        # Check that the provided stabilizers are single-qubit stabilizers
+        for stabilizer in new_single_qubit_stabilizers:
+            if not isinstance(stabilizer, Stabilizer):
+                raise TypeError(
+                    f"Invalid single-qubit stabilizer: '{stabilizer}'. Must be of type "
+                    "`Stabilizer`"
+                )
+            if len(stabilizer.data_qubits) != 1:
+                raise ValueError(
+                    "Each single-qubit stabilizer must contain exactly one data qubit."
+                )
+
+        # Check that the specified block exists at the current timestep
+        if block_id not in self.block_history.block_uuids_at_index(-1):
+            raise ValueError(
+                f"Block {block_id} not present at current timestep in block history."
+            )
+
+        # Retrieve the existing stabilizers for the block
+        current_single_qubit_stabilizers = self.measured_single_qubit_stabilizers.get(
+            block_id, set()
+        )
+
+        # Update measured_single_qubit_stabilizers
+        self.measured_single_qubit_stabilizers[block_id] = (
+            current_single_qubit_stabilizers | new_single_qubit_stabilizers
+        )
 
     @check_frozen
     def get_channel_MUT(  # pylint: disable=invalid-name
@@ -783,7 +951,7 @@ class InterpretationStep:  # pylint: disable=too-many-instance-attributes
     @check_frozen
     def get_new_cbit_MUT(  # pylint: disable=invalid-name
         self, register_name: str
-    ) -> Cbit:
+    ) -> tuple[str, int]:
         """
         Create a new Cbit for the given register name, considering how often that
         register has been used for measurements before. Increase the respective counter.

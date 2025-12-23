@@ -49,8 +49,8 @@ class TestRotatedSurfaceCodeGrow(unittest.TestCase):
             weight_2_stab_is_first_row=False,
         )
 
-        int_step = InterpretationStep(
-            block_history=[(rsc,)],
+        int_step = InterpretationStep.create(
+            [rsc],
             logical_x_operator_updates={
                 rsc.logical_x_operators[0].uuid: (("dummy_X", 0),)
             },
@@ -59,7 +59,7 @@ class TestRotatedSurfaceCodeGrow(unittest.TestCase):
             },
         )
         output_step = grow(int_step, grow_op, same_timeslice=False, debug_mode=True)
-        new_block = output_step.block_history[-1][0]
+        new_block = output_step.get_blocks_at_index(-1)[0]
 
         expected_block = RotatedSurfaceCode.create(
             dx=4,
@@ -178,8 +178,8 @@ class TestRotatedSurfaceCodeGrow(unittest.TestCase):
             Direction.BOTTOM,
         ):
             grow_op = Grow("q1", direction, length=3)
-            base_step = InterpretationStep(
-                block_history=((initial_block,),),
+            base_step = InterpretationStep.create(
+                [initial_block],
                 logical_x_operator_updates={
                     initial_block.logical_x_operators[0].uuid: (("dummy_X", 0),)
                 },

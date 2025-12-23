@@ -63,8 +63,8 @@ class TestRotatedSurfaceCodeTStateInjection(unittest.TestCase):
             weight_2_stab_is_first_row=False,
             x_boundary=Orientation.VERTICAL,
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.block,),),
+        self.base_step = InterpretationStep.create(
+            [self.block],
         )
 
     def test_t_injection_physical_circuit(self):
@@ -375,8 +375,8 @@ class TestRotatedSurfaceCodeTStateInjection(unittest.TestCase):
             if stab.ancilla_qubits[0] in deterministic_ancilla_qubits
         )
         big_generated_syndromes = create_deterministic_syndromes(
-            interpretation_step=InterpretationStep(
-                block_history=((self.big_block,),),
+            interpretation_step=InterpretationStep.create(
+                [self.big_block],
             ),
             block=self.big_block,
             deterministic_stabs=deterministic_big_stabs,
@@ -501,8 +501,15 @@ class TestRotatedSurfaceCodeTStateInjection(unittest.TestCase):
                 ),
             )
 
-            # Check that the syndromes are correctly created
-            centered_block = interpretation_step.block_history[-2][0]
+            # Extract second-to-last block from the history to check syndromes etc.
+            block_history = interpretation_step.block_history
+            center_block_uuid = block_history.blocks_at(
+                # This will yield the second to last timestamp
+                block_history.max_timestamp_below_ref_value(
+                    interpretation_step.get_timestamp()
+                )
+            ).pop()
+            centered_block = interpretation_step.block_registry[center_block_uuid]
             deterministic_stabs = tuple(
                 stab
                 for stab in centered_block.stabilizers
@@ -564,10 +571,11 @@ class TestRotatedSurfaceCodeTStateInjection(unittest.TestCase):
                 expected_z_updates,
             )
 
-            # Check that the block evolution is correctly recorded
+            # Check that the block evolution is correctly recorded.
+            # Since state injection resets the block into a known state, there should
+            # only be the mapping of the centered block to the new block.
             self.assertEqual(
                 {
-                    centered_block.uuid: (self.block.uuid,),
                     new_block.uuid: (centered_block.uuid,),
                 },
                 interpretation_step.block_evolution,
@@ -588,8 +596,8 @@ class TestRotatedSurfaceCodeTStateInjection(unittest.TestCase):
             for size in ((3, 4), (4, 3), (4, 4))
         )
         for block in invalid_blocks:
-            base_step = InterpretationStep(
-                block_history=((block,),),
+            base_step = InterpretationStep.create(
+                [block],
             )
             with self.assertRaises(ValueError) as cm:
                 state_injection(

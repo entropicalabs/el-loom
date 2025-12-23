@@ -37,9 +37,7 @@ def test_generate_syndromes_subtests(n_rsc_block_factory, subtests):
                     tuple((f"c_{q}", 3) for q in stab.ancilla_qubits)
                     for stab in rsc_block.stabilizers
                 ],
-                "interpretation_step": InterpretationStep(
-                    block_history=((rsc_block,),)
-                ),
+                "interpretation_step": InterpretationStep.create((rsc_block,)),
             },
             tuple(
                 Syndrome(
@@ -60,8 +58,8 @@ def test_generate_syndromes_subtests(n_rsc_block_factory, subtests):
                     tuple((f"c_{q}", 4) for q in stab.ancilla_qubits)
                     for stab in rsc_block.stabilizers
                 ],
-                "interpretation_step": InterpretationStep(
-                    block_history=((rsc_block,),),
+                "interpretation_step": InterpretationStep.create(
+                    (rsc_block,),
                     block_qec_rounds={rsc_block.uuid: 7},
                     syndromes=tuple(
                         Syndrome(
@@ -94,8 +92,8 @@ def test_generate_syndromes_subtests(n_rsc_block_factory, subtests):
                 "stab_measurements": [
                     tuple((f"c_{q}", 0) for q in stab.data_qubits) for stab in z_stabs
                 ],
-                "interpretation_step": InterpretationStep(
-                    block_history=((rsc_block,),),
+                "interpretation_step": InterpretationStep.create(
+                    (rsc_block,),
                     block_qec_rounds={rsc_block.uuid: 7},
                     syndromes=tuple(
                         Syndrome(
@@ -126,9 +124,7 @@ def test_generate_syndromes_subtests(n_rsc_block_factory, subtests):
                 "stabilizers": x_stabs,
                 "block": rsc_block,
                 "stab_measurements": [tuple() for _ in x_stabs],
-                "interpretation_step": InterpretationStep(
-                    block_history=((rsc_block,),)
-                ),
+                "interpretation_step": InterpretationStep.create((rsc_block,)),
             },
             tuple(
                 Syndrome(
@@ -149,16 +145,14 @@ def test_generate_syndromes_subtests(n_rsc_block_factory, subtests):
                     tuple((f"c_{q}", 3) for q in stab.ancilla_qubits)
                     for stab in rsc_block.stabilizers
                 ],
-                "interpretation_step": InterpretationStep(
-                    block_history=((rsc_block,),)
-                ),
+                "interpretation_step": InterpretationStep.create((rsc_block,)),
             },
             tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
                     measurements=tuple((f"c_{q}", 3) for q in stab.ancilla_qubits),
-                    corrections=InterpretationStep(
-                        block_history=((rsc_block,),)
+                    corrections=InterpretationStep.create(
+                        (rsc_block,)
                     ).stabilizer_updates.get(stab.uuid, ()),
                     round=0,
                     block=rsc_block.uuid,

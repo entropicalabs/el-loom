@@ -141,6 +141,7 @@ class IfElseCircuit(Circuit):
             self, "duration", max(self.if_circuit.duration, self.else_circuit.duration)
         )
 
+    # Override Parent Methods
     @classmethod
     def as_gate(cls):
         """Represent IfElseCircuit as a gate."""

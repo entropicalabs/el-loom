@@ -342,7 +342,7 @@ class TestRotatedSurfaceCodeWorkflows(unittest.TestCase):
         block = RotatedSurfaceCode.create(
             dx=5, dz=7, position=(1, 2), lattice=self.lattice, unique_label="q1"
         )
-        base_step = InterpretationStep(block_history=((block,),))
+        base_step = InterpretationStep.create((block,))
         step0 = reset_all_data_qubits(
             interpretation_step=base_step,
             operation=ResetAllDataQubits(block.unique_label, "0"),

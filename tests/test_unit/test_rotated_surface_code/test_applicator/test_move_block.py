@@ -53,8 +53,8 @@ class TestRotatedSurfaceCodeMoveBlock(unittest.TestCase):
             unique_label="q2",
             position=(1, 1),
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.rot_surf_code_1,),),
+        self.base_step = InterpretationStep.create(
+            [self.rot_surf_code_1],
         )
 
     def test_check_valid_move(self):
@@ -412,8 +412,8 @@ class TestRotatedSurfaceCodeMoveBlock(unittest.TestCase):
         # Same label different types.)
 
         # Check updated Block
-        updated_block = new_step.block_history[-1][0]
-        original_block = new_step.block_history[0][0]
+        updated_block = new_step.get_blocks_at_index(-1)[0]
+        original_block = new_step.get_blocks_at_index(0)[0]
         self.assertNotEqual(original_block, updated_block)
 
         # Test against the expected Blocks
@@ -446,8 +446,8 @@ class TestRotatedSurfaceCodeMoveBlock(unittest.TestCase):
             new_step = cleanup_final_step(final_step)
 
             # Check updated Block
-            updated_block = new_step.block_history[-1][0]
-            original_block = new_step.block_history[0][0]
+            updated_block = new_step.get_blocks_at_index(-1)[0]
+            original_block = new_step.get_blocks_at_index(0)[0]
             self.assertNotEqual(original_block, updated_block)
 
             # Test against the expected Block

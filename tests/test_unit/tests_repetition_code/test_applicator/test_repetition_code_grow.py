@@ -55,8 +55,8 @@ class TestRepetitionCodeGrow(
             unique_label="q1",
             position=(self.position,),
         )
-        self.bitflip_int_step = InterpretationStep(
-            block_history=((self.bitflip_code,),)
+        self.bitflip_int_step = InterpretationStep.create(
+            [self.bitflip_code],
         )
 
         self.phaseflip_code = RepetitionCode.create(
@@ -66,8 +66,8 @@ class TestRepetitionCodeGrow(
             unique_label="q1",
             position=(self.position,),
         )
-        self.phaseflip_int_step = InterpretationStep(
-            block_history=((self.phaseflip_code,),)
+        self.phaseflip_int_step = InterpretationStep.create(
+            [self.phaseflip_code],
         )
         self.generic_left_boundary = (self.position, 0)
 
@@ -82,8 +82,8 @@ class TestRepetitionCodeGrow(
         self.rep_code_dict = {"X": self.phaseflip_code, "Z": self.bitflip_code}
 
         self.base_step_dict = {
-            check: InterpretationStep(
-                block_history=((code,),),
+            check: InterpretationStep.create(
+                [code],
                 logical_x_operator_updates={
                     code.logical_x_operators[0].uuid: (("dummy_X", 0),)
                 },
@@ -119,7 +119,7 @@ class TestRepetitionCodeGrow(
             logical_z_operators=[PauliOperator("Z", ((0, 0),))],
             unique_label="q1",
         )
-        input_step = InterpretationStep(block_history=((invalid_block,),))
+        input_step = InterpretationStep.create([invalid_block])
 
         grow_op = Grow(
             input_block_name=invalid_block.unique_label,

@@ -58,7 +58,7 @@ class TestRotatedSurfaceCodeApplicator(unittest.TestCase):
     """
 
     def setUp(self):
-        self.base_step = InterpretationStep()
+        self.base_step = InterpretationStep.create([])
 
         self.square_2d_lattice = Lattice.square_2d((10, 20))
         self.eka_no_blocks = Eka(self.square_2d_lattice)
@@ -190,8 +190,8 @@ class TestRotatedSurfaceCodeApplicator(unittest.TestCase):
                 unique_label=name,
             )
 
-            base_step = InterpretationStep(
-                block_history=((rsc_block,),),
+            base_step = InterpretationStep.create(
+                [rsc_block],
             )
             output_step = measurelogicalpauli(
                 base_step, measurement_op, same_timeslice=False, debug_mode=False
@@ -264,8 +264,8 @@ class TestRotatedSurfaceCodeApplicator(unittest.TestCase):
             input_eka = Eka(lattice, blocks=[rsc_block], operations=[logical_op])
             # Create the base step with the block history and then interpret the
             # operation
-            base_step = InterpretationStep(
-                block_history=((rsc_block,),),
+            base_step = InterpretationStep.create(
+                [rsc_block],
             )
             output_step = RotatedSurfaceCodeApplicator(input_eka).apply(
                 base_step, logical_op, same_timeslice=False, debug_mode=True
@@ -335,8 +335,8 @@ class TestRotatedSurfaceCodeApplicator(unittest.TestCase):
             logical_op = ResetAllDataQubits(rsc_block.unique_label, state=state)
             # Create the base step with the block history and then interpret the
             # operation
-            base_step = InterpretationStep(
-                block_history=((rsc_block,),),
+            base_step = InterpretationStep.create(
+                [rsc_block],
             )
             output_step = reset_all_data_qubits(
                 base_step, logical_op, same_timeslice=False, debug_mode=True
@@ -389,8 +389,8 @@ class TestRotatedSurfaceCodeApplicator(unittest.TestCase):
         ancilla_reset = ResetAllDataQubits(rsc_block.unique_label)
         # Create the base step with the block history and then interpret the
         # operation
-        base_step = InterpretationStep(
-            block_history=((rsc_block,),),
+        base_step = InterpretationStep.create(
+            [rsc_block],
         )
         output_step = reset_all_ancilla_qubits(
             base_step, ancilla_reset, same_timeslice=False, debug_mode=True

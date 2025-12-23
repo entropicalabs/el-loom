@@ -28,6 +28,7 @@ from .op_signature import (
     ALL_EKA_OP_SIGNATURES,
     BOOL_LOGIC_OP_SIGNATURE,
     CLIFFORD_GATES_SIGNATURE,
+    NONCLIFFORD_GATES_SIGNATURE,
     CONTROL_FLOW_OP_SIGNATURE,
     UTILS_SIGNATURE,
     OpType,
@@ -83,6 +84,7 @@ class EkaToQasmConverter(Converter[QasmProgram, Any]):
             "y": "y",
             "z": "z",
             "h": "h",
+            "t": "t",
             "phase": "s",
             "phaseinv": "sdg",
             "cnot": "cx",
@@ -202,7 +204,7 @@ class EkaToQasmConverter(Converter[QasmProgram, Any]):
         return {
             # Quantum gate instructions
             op.name: partial(op_type_handlers[op.op_type], op=eka_to_qasm_ops[op.name])
-            for op in CLIFFORD_GATES_SIGNATURE
+            for op in CLIFFORD_GATES_SIGNATURE | NONCLIFFORD_GATES_SIGNATURE
         } | {
             # Bool op and control flow mapping are less straightforward so they are
             # handled in the handlers methods

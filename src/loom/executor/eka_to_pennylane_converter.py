@@ -28,6 +28,7 @@ from .op_signature import (
     BOOL_LOGIC_OP_SIGNATURE,
     CONTROL_FLOW_OP_SIGNATURE,
     USUAL_QUANTUM_GATES,
+    NONCLIFFORD_GATES_SIGNATURE,
     UTILS_SIGNATURE,
     OpType,
     OpSignature,
@@ -107,7 +108,7 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
         return v
 
     @cached_property
-    # pylint: disable=unused-argument
+    # pylint: disable=unused-argument, too-many-statements
     def operations_map(
         self,
     ) -> dict[str, OpAndTargetToInstrCallable]:
@@ -145,6 +146,32 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
                 res += f"{self.import_prefix}{o}({str(q_targets[0])})\n"
             res += f"{desc} = {op[-1]}({str(q_targets[0])})"
             return res
+
+        def _reset_op(
+            q_targets: list[int],
+            c_targets: list[str],
+            op: str | list[str],
+            desc: str = "",
+        ) -> str:
+            """Handle reset operations by calling measure with reset=True, followed by
+            any gates."""
+            instructions = []
+            if not isinstance(op, list):
+                op = [op]
+
+            # The first operation should be the measure with reset=True
+            measure_func = op[0]
+            instructions.append(f"{measure_func}({str(q_targets[0])}, reset=True)")
+
+            # Apply any subsequent gates
+            for o in op[1:]:
+                if o.startswith(f"{self.import_prefix}") or o.startswith("catalyst_"):
+                    prefix = ""
+                else:
+                    prefix = self.import_prefix
+                instructions.append(f"{prefix}{o}({q_targets})")
+
+            return "\n".join(instructions)
 
         def _control_flow_op(
             q_targets: list[int],
@@ -222,7 +249,7 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
             OpType.SINGLE_QUBIT: _quantum_gate_op,
             OpType.TWO_QUBIT: _quantum_gate_op,
             OpType.MEASUREMENT: _measurement_op,
-            OpType.RESET: _quantum_gate_op,
+            OpType.RESET: _reset_op,
             OpType.CONTROL_FLOW: _control_flow_op,
             OpType.UTILS: _utils_op,
             OpType.BOOL_LOGIC: _bool_logic_op,
@@ -231,11 +258,17 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
         measure_op = (
             "catalyst_measure" if self.is_catalyst else f"{self.import_prefix}measure"
         )
+        # PennyLane implements resets via measure(qubit, reset=True)
+        # We use a separate variable for semantic clarity, though it points to the same
+        # function
+        reset_op = measure_op
+
         eka_to_pennylane_ops = {
             "i": "Identity",
             "x": "PauliX",
             "y": "PauliY",
             "z": "PauliZ",
+            "t": "T",
             "h": "Hadamard",
             "phase": "S",
             "phaseinv": f"adjoint({self.import_prefix}S)",
@@ -244,14 +277,14 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
             "cz": "CZ",
             "cx": "CNOT",
             "swap": "SWAP",
-            "reset": measure_op,
-            "reset_0": measure_op,
-            "reset_1": [measure_op, "PauliX"],
-            "reset_+": [measure_op, "Hadamard"],
-            "reset_-": [measure_op, "PauliX", "Hadamard"],
-            "reset_+i": [measure_op, "Hadamard", "S"],
+            "reset": reset_op,
+            "reset_0": reset_op,
+            "reset_1": [reset_op, "PauliX"],
+            "reset_+": [reset_op, "Hadamard"],
+            "reset_-": [reset_op, "PauliX", "Hadamard"],
+            "reset_+i": [reset_op, "Hadamard", "S"],
             "reset_-i": [
-                measure_op,
+                reset_op,
                 "PauliX",
                 "Hadamard",
                 "S",
@@ -265,7 +298,7 @@ class EkaToPennylaneConverter(Converter[str, PennyLaneResult]):
             op.name: partial(
                 op_type_handlers[op.op_type], op=eka_to_pennylane_ops[op.name]
             )
-            for op in USUAL_QUANTUM_GATES
+            for op in USUAL_QUANTUM_GATES | NONCLIFFORD_GATES_SIGNATURE
         } | {
             op.name: partial(op_type_handlers[op.op_type], op=op.name)
             for op in CONTROL_FLOW_OP_SIGNATURE

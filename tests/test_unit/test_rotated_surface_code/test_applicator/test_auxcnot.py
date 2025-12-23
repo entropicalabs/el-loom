@@ -66,9 +66,7 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             lattice=self.lattice,
             unique_label="t",
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.control, self.target),)
-        )
+        self.base_step = InterpretationStep.create([self.control, self.target])
 
     def test_op_aux_cnot(self):
         """Test the creation of an AuxCNOT operation"""
@@ -197,7 +195,7 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             debug_mode=True,
         )
         # Check that the control block has been grown correctly
-        self.assertEqual(len(new_step.block_history), 2)
+        self.assertEqual(len(list(new_step.block_history.blocks_over_time())), 2)
         grown_control = new_step.get_block("c")
         untouched_target = new_step.get_block("t")
         expected_grown_control = RotatedSurfaceCode.create(
@@ -221,8 +219,8 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             lattice=self.lattice,
             unique_label="c",
         )
-        grown_step = InterpretationStep(
-            block_history=((grown_control, self.target),),
+        grown_step = InterpretationStep.create(
+            [grown_control, self.target],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -275,8 +273,8 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             position=(4, 0),
             unique_label="aux",
         )
-        split_step = InterpretationStep(
-            block_history=((aux_block, self.target),),
+        split_step = InterpretationStep.create(
+            [aux_block, self.target],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -319,8 +317,8 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             position=(4, 0),
             unique_label="t",
         )
-        merge_step = InterpretationStep(
-            block_history=((self.control, merged_target),),
+        merge_step = InterpretationStep.create(
+            [self.control, merged_target],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -449,7 +447,7 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
             new_target = RotatedSurfaceCode.create(
                 d, d, new_lattice, "new_t", position=pos_target
             )
-            new_step = InterpretationStep(block_history=((new_control, new_target),))
+            new_step = InterpretationStep.create([new_control, new_target])
             new_step.logical_x_operator_updates = {
                 new_control.logical_x_operators[0].uuid: (("dummy_X_control", 0),),
                 new_target.logical_x_operators[0].uuid: (("dummy_X_target", 0),),
@@ -533,7 +531,7 @@ class TestRotatedSurfaceCodeAuxCNOT(unittest.TestCase):
         # Check that the auxiliary block is named with a uuid if the name already exists
         expected_uuid_name = next(
             block.unique_label
-            for block in final_step.block_history[2]
+            for block in final_step.get_blocks_at_index(2)
             if block.unique_label
             not in (
                 self.control.unique_label,

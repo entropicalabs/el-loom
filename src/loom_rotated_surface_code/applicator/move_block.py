@@ -169,7 +169,7 @@ def move_block(
     # Find occupied qubits from other blocks in the latest timeslice
     other_blocks = [
         each_block
-        for each_block in interpretation_step.block_history[-1]
+        for each_block in interpretation_step.get_blocks_at_index(-1)
         if each_block != block
     ]
     occupied_qubits = [

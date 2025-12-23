@@ -17,6 +17,8 @@ limitations under the License.
 
 from loom.eka import Circuit
 from loom.eka.operations import ResetAllDataQubits
+from loom.eka.stabilizer import Stabilizer
+from loom.interpreter.syndrome import Syndrome
 
 from .generate_syndromes import generate_syndromes
 from ..interpretation_step import InterpretationStep
@@ -30,8 +32,8 @@ def reset_all_data_qubits(
 ) -> InterpretationStep:
     """
     Resets all data qubits of a block to a specific SingleQubitPauliEigenstate.
-    It also adds empty Syndrome objects for the stabilizers will be deterministic in
-    the first round of syndrome measurement cycles dependent on the
+    It also adds empty Syndrome objects for the stabilizers that will be deterministic
+    in the first round of syndrome measurement cycles dependent on the
     initialization state. This helps to put Detectors on these deterministic
     measurements when the block is measured.
 
@@ -78,6 +80,26 @@ def reset_all_data_qubits(
             ]
         ],
     )
+
+    # Create single-qubit stabilizers for the reset data qubits
+    reset_single_qubit_stabilizers = {
+        Stabilizer(pauli=operation.state.pauli_basis, data_qubits=(q,))
+        for q in block.data_qubits
+    }
+    # pylint: disable-next=unused-variable
+    reset_single_qubit_syndromes = (
+        Syndrome(
+            stabilizer=stab.uuid,
+            measurements=(),
+            block=block.uuid,
+            round=-1,  # should not be associated with any round
+            labels={stab.uuid: stab.data_qubits[0]},
+        )
+        # only deterministic outcomes are considered
+        for stab in reset_single_qubit_stabilizers
+        if stab.pauli == operation.state.pauli_basis
+    )
+
     relevant_stabs = [
         stab
         for stab in block.stabilizers
@@ -115,6 +137,11 @@ def reset_all_data_qubits(
         old_blocks=(block_before_reset,),
         new_blocks=(block,),
         update_evolution=False,
+    )
+
+    # Add `reset_single_qubit_stabilizers` for new block
+    interpretation_step.update_reset_single_qubit_stabilizers_MUT(
+        block_id=block.uuid, new_single_qubit_stabilizers=reset_single_qubit_stabilizers
     )
 
     # Return the new interpretation step

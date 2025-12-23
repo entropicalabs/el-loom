@@ -201,7 +201,7 @@ def interpret_eka(eka: Eka, debug_mode: bool = True) -> InterpretationStep:
     """
     # Initialize the interpretation step by passing the initial blocks as the first
     # element of the block history
-    step = InterpretationStep(block_history=(eka.blocks,))
+    step = InterpretationStep.create(initial_blocks=eka.blocks)
     for timestep in eka.operations:
         # Reset the same_timeslice flag for each new timestep
         same_timeslice = False

@@ -60,8 +60,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="standard2",
         ).shift((4, 0))
-        self.base_step = InterpretationStep(
-            block_history=((self.block_1, self.block_2),),
+        self.base_step = InterpretationStep.create(
+            [self.block_1, self.block_2],
             # Add syndromes manually (required for displacement of logical operators)
             syndromes=tuple(
                 Syndrome(
@@ -94,8 +94,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         ).shift((2, 0))
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         horizontal_merge = Merge(["q1", "q2"], "q3")
@@ -120,8 +120,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         horizontal_merge = Merge(["q1", "q2"], "q3")
@@ -145,8 +145,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         ).shift((4, 0))
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         horizontal_merge = Merge(["q1", "q2"], "q3")
@@ -173,8 +173,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         horizontal_merge = Merge(["q1", "q2"], "q3")
@@ -200,8 +200,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
         horizontal_merge = Merge(["q1", "q2"], "q3")
 
@@ -228,8 +228,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
         horizontal_merge = Merge(["q1", "q2"], "q3")
 
@@ -248,8 +248,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             lattice=self.lattice,
             unique_label="q2",
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
         vertical_merge = Merge(["q1", "q2"], "q3")
 
@@ -1010,8 +1010,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             unique_label="q2",
             position=(4, 0),
         )  # Use default logical operators for this block
-        base_step = InterpretationStep(
-            block_history=((rsc1, rsc2),),
+        base_step = InterpretationStep.create(
+            [rsc1, rsc2],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -1129,8 +1129,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
                 for q in stab.ancilla_qubits
                 if q in (block_1.ancilla_qubits + block_2.ancilla_qubits)
             )
-            interpretation_step = InterpretationStep(
-                block_history=((block_1, block_2),)
+            interpretation_step = InterpretationStep.create(
+                [block_1, block_2],
             )
             # Generate the merge syndromes
             syndromes = create_syndromes(
@@ -1183,8 +1183,8 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
             unique_label="merged",
         )
         # Define interpretation step
-        initial_step = InterpretationStep(
-            block_history=((block_1, block_2),),
+        initial_step = InterpretationStep.create(
+            [block_1, block_2],
             logical_x_operator_updates={
                 block_1.logical_x_operators[0].uuid: (("dummy_X_left", 0),),
                 block_2.logical_x_operators[0].uuid: (("dummy_X_right", 0),),
@@ -1202,12 +1202,6 @@ class TestRotatedSurfaceCodeMerge(unittest.TestCase):
         # Check that the block is correctly generated
         merged_block = interpretation_step.get_block("merged")
         self.assertEqual(merged_block, expected_new_block)
-
-        # Check that the block history is correctly updated
-        self.assertEqual(
-            interpretation_step.block_history,
-            ((block_1, block_2), (merged_block,)),
-        )
 
         # Check that the circuit is correctly generated
         qubits_to_measure = [(3, 0, 0), (3, 1, 0), (3, 2, 0)]

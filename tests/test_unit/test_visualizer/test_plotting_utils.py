@@ -41,6 +41,9 @@ from loom.visualizer.plotting_utils import (
 )
 
 
+# pylint: disable=duplicate-code
+
+
 class TestPlottingUtils(unittest.TestCase):
     """Unit tests for the plotting utilities in the visualizer module."""
 

@@ -28,6 +28,7 @@ from .op_signature import (
     CLIFFORD_GATES_SIGNATURE,
     USUAL_QUANTUM_GATES,
     UTILS_SIGNATURE,
+    NONCLIFFORD_GATES_SIGNATURE,
     OpSignature,
     OpType,
 )
@@ -184,6 +185,7 @@ class EkaToMimiqConverter(Converter[Channel, MimiqResult]):
             "y": "GateY()",
             "z": "GateZ()",
             "h": "GateH()",
+            "t": "GateT()",
             "phase": "GateS()",
             "phaseinv": "GateSDG()",
             "cnot": "GateCX()",
@@ -206,7 +208,7 @@ class EkaToMimiqConverter(Converter[Channel, MimiqResult]):
 
         return {
             op.name: partial(op_type_handlers[op.op_type], op=eka_to_mimiq_ops[op.name])
-            for op in USUAL_QUANTUM_GATES
+            for op in USUAL_QUANTUM_GATES | NONCLIFFORD_GATES_SIGNATURE
         } | {
             op.name: partial(op_type_handlers[op.op_type], op=op.name)
             for op in self.MIMIQ_CLASSICALLY_CONTROLLED_OPS | UTILS_SIGNATURE

@@ -9,7 +9,7 @@
 project = "el-loom"
 copyright = "2025, Entropica Labs Pte Ltd"
 author = "Entropica Labs Pte Ltd"
-release = "0.3.1"
+release = "0.4.0"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -35,6 +35,7 @@ autoclass_content = "both"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
+# html_theme = 'alabaster'
 html_theme = "sphinx_rtd_theme"
 html_logo = "_static/entropica_logo.svg"
 html_theme_options = {

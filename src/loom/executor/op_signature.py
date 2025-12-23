@@ -163,6 +163,7 @@ BOOL_LOGIC_OP_SIGNATURE = frozenset(
 STR_SINGLE_QUBIT_CLIFFORD_GATE = frozenset(
     {"i", "x", "y", "z", "h", "phase", "phaseinv"}
 )
+STR_NONCLIFFORD_SINGLE_QUBIT_GATE = frozenset({"t"})
 STR_TWO_QUBIT_GATE = frozenset({"cnot", "cx", "cy", "cz", "swap"})
 STR_RESET = frozenset(
     {
@@ -189,11 +190,15 @@ CLIFFORD_GATES_SIGNATURE = frozenset(
     )
 )
 
-
+NONCLIFFORD_GATES_SIGNATURE = frozenset(
+    OpSignature.single_qubit_op_signature(name=g, is_clifford=False)
+    for g in STR_NONCLIFFORD_SINGLE_QUBIT_GATE
+)
 ALL_EKA_OP_SIGNATURES = frozenset(
     CONTROL_FLOW_OP_SIGNATURE
     | BOOL_LOGIC_OP_SIGNATURE
     | CLIFFORD_GATES_SIGNATURE
+    | NONCLIFFORD_GATES_SIGNATURE
     | UTILS_SIGNATURE
 )
 

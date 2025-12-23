@@ -22,6 +22,64 @@ from collections.abc import Iterator
 from pydantic.dataclasses import dataclass
 
 
+class BlocksAlreadySeenError(Exception):
+    """
+    Exception raised when attempting to add blocks that have already been seen
+    in the BlockHistory.
+
+    Attributes
+    ----------
+    blocks : frozenset[str]
+        The set of block UUIDs that have already been seen.
+    """
+
+    def __init__(self, blocks: set[str]) -> None:
+        super().__init__(f"Blocks already seen in BlockHistory: {blocks}")
+        self.blocks = frozenset(blocks)
+
+
+class BlocksNotPresentError(Exception):
+    """
+    Exception raised when attempting to remove blocks that are not present
+    in the BlockHistory at a given timestamp.
+
+    Attributes
+    ----------
+    blocks : frozenset[str]
+        The set of block UUIDs that are not present.
+    timestamp : int
+        The timestamp at which the blocks were expected to be present.
+    """
+
+    def __init__(self, blocks: set[str], timestamp: int) -> None:
+        super().__init__(f"Blocks not present at timestamp {timestamp}: {blocks}")
+        self.blocks = frozenset(blocks)
+        self.timestamp = timestamp
+
+
+class InconsistentBlockUpdateError(Exception):
+    """
+    Exception raised when an inconsistent block update is detected while
+    propagating changes forward in time. This indicates that the expected blocks
+    were not present at a future timestamp.
+
+    Attributes
+    ----------
+    blocks : frozenset[str]
+        The set of block UUIDs that caused the inconsistency.
+    timestamp : int
+        The timestamp at which the inconsistency was detected.
+    """
+
+    def __init__(self, blocks: set[str], timestamp: int) -> None:
+        super().__init__(
+            f"Inconsistent block update detected at timestamp {timestamp}. "
+            f"Missing blocks: {blocks}"
+        )
+        self.blocks = frozenset(blocks)
+        self.timestamp = timestamp
+
+
 @dataclass
 class BlockHistory:
     """
@@ -29,14 +87,14 @@ class BlockHistory:
 
     Attributes
     ----------
-    - _blocks_by_timestamp: dict[int, set[str]]
+    _blocks_by_timestamp : dict[int, set[str]]
         A mapping from timestamps to sets of block UUIDs present at those times.
-    - _timestamps_sorted_asc: list[int]
+    _timestamps_sorted_asc : list[int]
         A sorted list of timestamps in ascending order. This allows for efficient
         searching of previous and next timestamps.
-    - _timestamps_set: set[int]
+    _timestamps_set : set[int]
         A set of timestamps for quick existence checks.
-    - _all_blocks_set: set[str]
+    _all_blocks_set : set[str]
         A set of all block UUIDs that have ever been present in the history.
     """
 
@@ -117,6 +175,34 @@ class BlockHistory:
             else None
         )
 
+    def block_uuids_at_index(self, index: int) -> set[str]:
+        """
+        Return the blocks present at the timestamp corresponding to the given index
+        in the sorted list of timestamps.
+
+        Parameters
+        ----------
+        index : int
+            The index in the sorted list of timestamps. Can be negative for reverse
+            indexing.
+
+        Returns
+        -------
+        set[str]
+            The set of block UUIDs present at the timestamp corresponding to the index.
+        """
+        if not isinstance(index, int):
+            raise ValueError(f"Index must be an integer. Got {type(index).__name__}.")
+        if not (
+            -len(self._timestamps_sorted_asc)
+            <= index
+            < len(self._timestamps_sorted_asc)
+        ):
+            raise IndexError("Index out of range for timestamps.")
+
+        timestamp = self._timestamps_sorted_asc[index]
+        return self._blocks_by_timestamp[timestamp].copy()
+
     def blocks_at(self, timestamp: int) -> set[str]:
         """
         Return the blocks present at the given timestamp. If the exact timestamp
@@ -177,7 +263,7 @@ class BlockHistory:
             # since sets are mutable
             yield timestamp, self._blocks_by_timestamp[timestamp].copy()
 
-    def update_blocks(
+    def update_blocks_MUT(  # pylint: disable=invalid-name
         self, timestamp: int, old_blocks: set[str], new_blocks: set[str]
     ) -> None:
         """
@@ -205,10 +291,8 @@ class BlockHistory:
         # Ensure that new_blocks have not been seen before
         blocks_seen_before = new_blocks.intersection(self._all_blocks_set)
         if blocks_seen_before:
-            raise ValueError(
-                "Some new_blocks have already been present in the block history. "
-                f"Blocks seen before: {blocks_seen_before}"
-            )
+            raise BlocksAlreadySeenError(blocks_seen_before)
+
         # Update the set of all blocks ever seen
         self._all_blocks_set.update(new_blocks)
 
@@ -227,10 +311,7 @@ class BlockHistory:
         # Ensure that old_blocks are present in blocks_to_modify
         if not old_blocks.issubset(blocks_to_modify):
             missing_blocks = old_blocks - blocks_to_modify
-            raise ValueError(
-                "Some old_blocks are not present in the blocks at the previous "
-                f"timestamp. Missing blocks: {missing_blocks}"
-            )
+            raise BlocksNotPresentError(missing_blocks, timestamp)
 
         # Compute updated blocks for this timestamp
         updated_blocks = (blocks_to_modify - old_blocks) | new_blocks
@@ -253,10 +334,7 @@ class BlockHistory:
         for t, block_set in self.blocks_over_time(t_start=timestamp + 1):
             if not old_blocks.issubset(block_set):
                 missing_blocks = old_blocks - block_set
-                raise ValueError(
-                    "Inconsistent block update detected. The following blocks were "
-                    f"not present: {missing_blocks} at timestamp {t}."
-                )
+                raise InconsistentBlockUpdateError(missing_blocks, t)
             # Update all subsequent timestamps to reflect the changes
             block_difference = block_set - old_blocks
             self._blocks_by_timestamp[t] = block_difference | new_blocks

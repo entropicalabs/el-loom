@@ -97,7 +97,7 @@ class TestApplicator:
 
         with pytest.raises(NotImplementedError) as cm:
             applicator.apply(
-                InterpretationStep(),
+                InterpretationStep.create(()),
                 MeasureBlockSyndromes(rsc_block.unique_label),
                 same_timeslice=False,
                 debug_mode=True,
@@ -119,7 +119,10 @@ class TestApplicator:
         base_applicator = BaseApplicator(empty_eka)
         with pytest.raises(NotImplementedError) as cm:
             base_applicator.apply(
-                InterpretationStep(), rand_op, same_timeslice=False, debug_mode=True
+                InterpretationStep.create(()),
+                rand_op,
+                same_timeslice=False,
+                debug_mode=True,
             )
         err_str = "Operation RandomOperation is not supported by BaseApplicator"
         assert err_str in str(cm.value)
@@ -128,11 +131,15 @@ class TestApplicator:
         code_applicator = CodeApplicator(empty_eka)
         with pytest.raises(NotImplementedError) as cm:
             code_applicator.apply(
-                InterpretationStep(), rand_op, same_timeslice=False, debug_mode=True
+                InterpretationStep.create(()),
+                rand_op,
+                same_timeslice=False,
+                debug_mode=True,
             )
         err_str = "Operation RandomOperation is not supported by CodeApplicator"
         assert err_str in str(cm.value)
 
+    # pylint: disable=too-many-locals
     def test_applicator_measurelogical_xyz(self, n_rsc_block_factory):
         """Test that the applicator creates the correct circuit, syndromes and
         logical observable for a MeasureLogicalX or MeasureLogicalZ operation.
@@ -209,8 +216,8 @@ class TestApplicator:
                 rsc_block, "logical_z_operators", [logical_operators[name][basis][1]]
             )
 
-            base_step = InterpretationStep(
-                block_history=((rsc_block,),),
+            base_step = InterpretationStep.create(
+                [rsc_block],
             )
             output_step = measurelogicalpauli(
                 base_step, measurement_op, same_timeslice=False, debug_mode=False
@@ -254,6 +261,22 @@ class TestApplicator:
             )
             assert output_step.logical_observables[0] == expected_observable
 
+            # Check that `measured_single_qubit_stabilizers` are updated correctly
+            new_block = output_step.get_block(rsc_block.unique_label)
+            expected_measudred_single_qubit_stabs = {
+                new_block.uuid: {
+                    Stabilizer(
+                        pauli=basis,
+                        data_qubits=(q,),
+                    )
+                    for q in rsc_block.data_qubits
+                }
+            }
+            assert (
+                output_step.measured_single_qubit_stabilizers
+                == expected_measudred_single_qubit_stabs
+            )
+
             ## Check for wrong input
             y_op = MeasureLogicalY(rsc_block.unique_label)
             err_msg = "Logical measurement in Y basis is not supported"
@@ -280,8 +303,8 @@ class TestApplicator:
             logical_op = ResetAllDataQubits(rsc_block.unique_label, state=state)
             # Create the base step with the block history and then interpret the
             # operation
-            base_step = InterpretationStep(
-                block_history=((rsc_block,),),
+            base_step = InterpretationStep.create(
+                [rsc_block],
             )
             output_step = reset_all_data_qubits(
                 base_step, logical_op, same_timeslice=False, debug_mode=True
@@ -324,6 +347,21 @@ class TestApplicator:
             )
             assert output_step.syndromes == expected_syndromes
 
+            # Check that `reset_single_qubit_stabilizers` are updated correctly
+            expected_reset_single_qubit_stabs = {
+                new_block.uuid: {
+                    Stabilizer(
+                        pauli=state.pauli_basis,
+                        data_qubits=(q,),
+                    )
+                    for q in rsc_block.data_qubits
+                }
+            }
+            assert (
+                output_step.reset_single_qubit_stabilizers
+                == expected_reset_single_qubit_stabs
+            )
+
     def test_ancilla_reset(self, n_rsc_block_factory):
         """Test that the applicator correctly applies the ancilla reset operation."""
         rsc_block = n_rsc_block_factory(1)[0]
@@ -334,8 +372,8 @@ class TestApplicator:
         ancilla_reset = ResetAllDataQubits(rsc_block.unique_label)
         # Create the base step with the block history and then interpret the
         # operation
-        base_step = InterpretationStep(
-            block_history=((rsc_block,),),
+        base_step = InterpretationStep.create(
+            [rsc_block],
         )
         output_step = reset_all_ancilla_qubits(
             base_step, ancilla_reset, same_timeslice=False, debug_mode=True

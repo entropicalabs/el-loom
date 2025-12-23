@@ -22,7 +22,9 @@ from loom.eka.operations import (
     MeasureLogicalZ,
     LogicalMeasurement,
 )
+from loom.eka.stabilizer import Stabilizer
 
+from loom.interpreter.syndrome import Syndrome
 from .generate_syndromes import generate_syndromes
 from .generate_detectors import generate_detectors
 from ..interpretation_step import InterpretationStep
@@ -41,8 +43,9 @@ def measurelogicalpauli(
     The algorithm is the following:
     
     - A.) Measure all data qubits in the block
-    - B.) Update Syndromes for all stabilizers involved in the data qubits measured
-    - C.) Create the logical observable including measured data qubits and all \
+    - B.) Create and add single-qubit stabilizers to `measured_single_qubit_stabilizers`
+    - C.) Update Syndromes for all stabilizers involved in the data qubits measured
+    - D.) Create the logical observable including measured data qubits and all \
     previous corrections
 
     Parameters
@@ -78,7 +81,7 @@ def measurelogicalpauli(
         case _:
             raise ValueError(f"Operation {operation.__class__.__name__} not supported")
 
-    # 1 - Measure all data qubits in a block and keep track of the Cbits
+    # A) - Measure all data qubits in a block and keep track of the Cbits
     meas_circuit_seq = []
 
     # Add Hadamard layer for X basis
@@ -119,7 +122,39 @@ def measurelogicalpauli(
     # Append the circuit
     interpretation_step.append_circuit_MUT(meas_circuit, same_timeslice)
 
-    # 2 - Update Syndromes for all stabilizers involved in the data qubits measured
+    # B) - Create and add single-qubit stabilizers
+    # to `measured_single_qubit_stabilizers`
+    measured_single_qubit_stabilizers = {
+        Stabilizer(
+            pauli=basis,
+            data_qubits=(q,),
+        )
+        for q in block.data_qubits
+    }
+    interpretation_step.update_measured_single_qubit_stabilizers_MUT(
+        block_id=block.uuid,
+        new_single_qubit_stabilizers=measured_single_qubit_stabilizers,
+    )
+
+    # C) - Update Syndromes for all stabilizers involved in the data qubits measured
+    # pylint: disable-next=unused-variable
+    meaured_single_qubit_syndromes = (
+        Syndrome(
+            stabilizer=stab.uuid,
+            measurements=tuple(
+                cbit
+                for cbit in measurements
+                if cbit[0].split("_")[1] == str(stab.data_qubits[0])
+            ),
+            block=block.uuid,
+            round=-1,  # should not be associated with any round
+            labels={stab.uuid: stab.data_qubits[0]},
+        )
+        # only use the stabilizers of the right pauli type
+        for stab in measured_single_qubit_stabilizers
+        if stab.pauli == basis
+    )
+
     # Only use the stabilizers of the right pauli type
     relevant_stabs = [stab for stab in block.stabilizers if set(stab.pauli) == {basis}]
     # Get the classical bits associated with these stabilizers
@@ -138,9 +173,8 @@ def measurelogicalpauli(
     # Create Detectors for the new syndromes
     new_detectors = generate_detectors(interpretation_step, new_syndromes)
 
-    # 3 - Create the logical observable including measured
+    # D) - Create the logical observable including measured
     # data qubits and all previous corrections
-
     if basis == "X":
         logical_qubit = block.logical_x_operators[logical_qubit_index]
         operator_updates = interpretation_step.logical_x_operator_updates

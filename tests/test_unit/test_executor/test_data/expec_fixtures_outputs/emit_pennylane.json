@@ -25,10 +25,10 @@
   },
   "reset_gate": {
     "success": true,
-    "str_inst": "qml.measure([0])"
+    "str_inst": "qml.measure(0, reset=True)"
   },
   "instruction_w_multiple_steps": {
     "success": true,
-    "str_inst": "qml.measure([0])\nqml.PauliX([0])\nqml.Hadamard([0])\nqml.S([0])"
+    "str_inst": "qml.measure(0, reset=True)\nqml.PauliX([0])\nqml.Hadamard([0])\nqml.S([0])"
   }
 }

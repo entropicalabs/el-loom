@@ -115,13 +115,11 @@ class TestRepetitionCodeMerge(
         }
 
         self.base_step_dict = {
-            (check, spacing): InterpretationStep(
-                block_history=(
-                    (
-                        rc_1 := self.rep_code_dict[check],
-                        rc_2 := self.shifted_rep_codes_dict[check][spacing],
-                    ),
-                ),
+            (check, spacing): InterpretationStep.create(
+                [
+                    rc_1 := self.rep_code_dict[check],
+                    rc_2 := self.shifted_rep_codes_dict[check][spacing],
+                ],
                 logical_x_operator_updates={
                     rc_1.logical_x_operators[0].uuid: (("dummy_X", 0),),
                     rc_2.logical_x_operators[0].uuid: (("dummy_X", 1),),
@@ -161,8 +159,8 @@ class TestRepetitionCodeMerge(
                 output_block_name="out_q1",
                 orientation=Orientation.HORIZONTAL,
             )
-            input_step = InterpretationStep(
-                block_history=((block1, block2),),
+            input_step = InterpretationStep.create(
+                [block1, block2],
             )
 
             err_msg_type = (
@@ -177,8 +175,8 @@ class TestRepetitionCodeMerge(
         # Test merging with repetition codes of different check types
         block1 = self.rep_code_dict["X"]
         block2 = self.rep_code_dict["Z"]
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         merge_op = Merge(
@@ -207,8 +205,8 @@ class TestRepetitionCodeMerge(
             unique_label="q1",
             position=(self.position + 1,),
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         err_msg = "Cannot merge blocks that overlap."
@@ -239,8 +237,8 @@ class TestRepetitionCodeMerge(
             unique_label="q2",
             position=(self.distance + 2,),
         )
-        input_step = InterpretationStep(
-            block_history=((block1, block2),),
+        input_step = InterpretationStep.create(
+            [block1, block2],
         )
 
         err_msg = (

@@ -151,8 +151,10 @@ def state_injection(
         unique_label=input_block.unique_label,
         skip_validation=not debug_mode,
     )
+    # update_evolution is set to False because the state injection resets the block into
+    # a known state, so there is no evolution to record.
     interpretation_step.update_block_history_and_evolution_MUT(
-        new_blocks=(centered_block,), old_blocks=(input_block,)
+        new_blocks=(centered_block,), old_blocks=(input_block,), update_evolution=False
     )
 
     # D) Syndromes

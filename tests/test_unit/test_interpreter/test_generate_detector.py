@@ -41,8 +41,8 @@ class TestGenerateDetectors:
             for i in range(4, 6)
         )
 
-        int_step_general_syndromes = InterpretationStep(
-            block_history=((rsc_block,),),
+        int_step_general_syndromes = InterpretationStep.create(
+            (rsc_block,),
             syndromes=initial_syndromes,
         )
 
@@ -68,8 +68,8 @@ class TestGenerateDetectors:
             if set(stab.pauli) == {"X"}
         )
 
-        int_step_reset_syndromes = InterpretationStep(
-            block_history=((rsc_block,),),
+        int_step_reset_syndromes = InterpretationStep.create(
+            (rsc_block,),
             syndromes=reset_syndromes,
         )
 
@@ -206,23 +206,21 @@ class TestGenerateDetectors:
         )
 
         n_stabilizers_evolved = 5
-        int_step = InterpretationStep(
-            # Block 1 gets transformed into block 2
-            block_history=((rsc_blocks[0],), (rsc_blocks[1],)),
-            block_evolution={
-                rsc_blocks[1].uuid: (rsc_blocks[0].uuid,),
-            },
-            # The first 5 stabilizers of the first block evolve into the first
-            # n_stabilizers_evolved stabilizers of the second block
-            stabilizer_evolution={
-                rsc_blocks[1]
-                .stabilizers[0]
-                .uuid: tuple(
-                    rsc_blocks[0].stabilizers[s_idx].uuid
-                    for s_idx in range(n_stabilizers_evolved)
-                )
-            },
+        # Create with first block, then update to second block to set up evolution
+        int_step = InterpretationStep.create(
+            (rsc_blocks[0],),
             syndromes=initial_syndromes,
+        )
+        # Update block history to include evolution from block 0 to block 1
+        int_step.update_block_history_and_evolution_MUT(
+            new_blocks=(rsc_blocks[1],),
+            old_blocks=(rsc_blocks[0],),
+            update_evolution=True,
+        )
+        # Set up stabilizer evolution for testing
+        int_step.stabilizer_evolution[rsc_blocks[1].stabilizers[0].uuid] = tuple(
+            rsc_blocks[0].stabilizers[s_idx].uuid
+            for s_idx in range(n_stabilizers_evolved)
         )
 
         # Create a new syndrome for the first stabilizer of the second block

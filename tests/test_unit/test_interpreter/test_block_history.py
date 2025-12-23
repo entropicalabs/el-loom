@@ -19,9 +19,14 @@ import uuid
 
 import pytest
 
-from loom.interpreter.block_history import BlockHistory
+from loom.interpreter.block_history import (
+    BlockHistory,
+    BlocksAlreadySeenError,
+    BlocksNotPresentError,
+    InconsistentBlockUpdateError,
+)
 
-# pylint: disable=redefined-outer-name, protected-access
+# pylint: disable=redefined-outer-name, protected-access, invalid-name
 
 
 @pytest.fixture
@@ -55,7 +60,7 @@ class TestBlockHistory:
 
     def test_max_timestamp_below_ref_value(self, block_history: BlockHistory):
         """Test getting the previous timestamp."""
-        block_history.update_blocks(10, set(), set())
+        block_history.update_blocks_MUT(10, set(), set())
         assert block_history.max_timestamp_below_ref_value(10) == 0
         assert block_history.max_timestamp_below_ref_value(5) == 0
         with pytest.raises(IndexError):
@@ -73,8 +78,8 @@ class TestBlockHistory:
 
     def test_min_timestamp_above_ref_value(self, block_history: BlockHistory):
         """Test getting the next timestamp."""
-        block_history.update_blocks(10, set(), set())
-        block_history.update_blocks(20, set(), set())
+        block_history.update_blocks_MUT(10, set(), set())
+        block_history.update_blocks_MUT(20, set(), set())
         assert block_history.min_timestamp_above_ref_value(0) == 10
         assert block_history.min_timestamp_above_ref_value(10) == 20
         assert block_history.min_timestamp_above_ref_value(15) == 20
@@ -92,7 +97,7 @@ class TestBlockHistory:
     def test_blocks_at(self, block_history: BlockHistory, initial_blocks: set[str]):
         """Test getting blocks at a specific timestamp."""
         new_block = {str(uuid.uuid4())}
-        block_history.update_blocks(10, set(), new_block)
+        block_history.update_blocks_MUT(10, set(), new_block)
 
         assert block_history.blocks_at(0) == initial_blocks
         assert block_history.blocks_at(5) == initial_blocks
@@ -112,8 +117,8 @@ class TestBlockHistory:
         """Test getting blocks over a time range."""
         new_block_10 = {str(uuid.uuid4())}
         new_block_20 = {str(uuid.uuid4())}
-        block_history.update_blocks(10, set(), new_block_10)
-        block_history.update_blocks(20, set(), new_block_20)
+        block_history.update_blocks_MUT(10, set(), new_block_10)
+        block_history.update_blocks_MUT(20, set(), new_block_20)
 
         # Full range
         timestamps, blocks = zip(*block_history.blocks_over_time(), strict=True)
@@ -157,14 +162,16 @@ class TestBlockHistory:
             for _ in block_history.blocks_over_time(t_stop=-1):
                 pass
 
-    def test_update_blocks(self, block_history: BlockHistory, initial_blocks: set[str]):
+    def test_update_blocks_MUT(
+        self, block_history: BlockHistory, initial_blocks: set[str]
+    ):
         """Test updating blocks."""
 
         # Make change for t = 10
         old_block_10 = {list(initial_blocks)[0]}
         new_block_10 = {str(uuid.uuid4())}
 
-        block_history.update_blocks(10, old_block_10, new_block_10)
+        block_history.update_blocks_MUT(10, old_block_10, new_block_10)
 
         expected_blocks_10 = (initial_blocks - old_block_10) | new_block_10
         assert block_history.blocks_at(10) == expected_blocks_10
@@ -175,7 +182,7 @@ class TestBlockHistory:
         old_block_5 = {(initial_blocks - old_block_10).pop()}
         new_block_5 = {str(uuid.uuid4())}
 
-        block_history.update_blocks(5, old_block_5, new_block_5)
+        block_history.update_blocks_MUT(5, old_block_5, new_block_5)
 
         expected_blocks_5 = (initial_blocks - old_block_5) | new_block_5
         assert block_history.blocks_at(5) == expected_blocks_5
@@ -187,45 +194,52 @@ class TestBlockHistory:
         assert 5 in block_history._timestamps_set
         assert block_history._timestamps_sorted_asc == [0, 5, 10]
 
-    def test_update_blocks_existing_timestamp(
+    def test_update_blocks_MUT_existing_timestamp(
         self, block_history: BlockHistory, initial_blocks: set[str]
     ):
         """Test updating blocks at an existing timestamp."""
         new_block1 = {str(uuid.uuid4())}
-        block_history.update_blocks(10, set(), new_block1)
+        block_history.update_blocks_MUT(10, set(), new_block1)
         assert block_history.blocks_at(10) == initial_blocks | new_block1
 
         new_block2 = {str(uuid.uuid4())}
-        block_history.update_blocks(10, new_block1, new_block2)
+        block_history.update_blocks_MUT(10, new_block1, new_block2)
         assert block_history.blocks_at(10) == initial_blocks | new_block2
         assert block_history._timestamps_sorted_asc == [0, 10]
 
-    def test_update_blocks_invalid_timestamp(self, block_history: BlockHistory):
-        """Test update_blocks with invalid timestamp."""
+    def test_update_blocks_MUT_invalid_timestamp(self, block_history: BlockHistory):
+        """Test update_blocks_MUT with invalid timestamp."""
         with pytest.raises(
             ValueError, match="Timestamp must be a non-negative integer."
         ):
-            block_history.update_blocks(-1, set(), set())
+            block_history.update_blocks_MUT(-1, set(), set())
 
-    def test_update_blocks_invalid_old_blocks(self, block_history: BlockHistory):
-        """Test update_blocks with invalid old_blocks."""
+    def test_update_blocks_MUT_invalid_old_blocks(self, block_history: BlockHistory):
+        """Test update_blocks_MUT with invalid old_blocks."""
         with pytest.raises(
             ValueError, match="old_blocks must be a set of valid UUID4 strings."
         ):
-            block_history.update_blocks(10, {"not-a-uuid"}, set())
+            block_history.update_blocks_MUT(10, {"not-a-uuid"}, set())
 
-    def test_update_blocks_invalid_new_blocks(self, block_history: BlockHistory):
-        """Test update_blocks with invalid new_blocks."""
+    def test_update_blocks_MUT_invalid_new_blocks(self, block_history: BlockHistory):
+        """Test update_blocks_MUT with invalid new_blocks."""
         with pytest.raises(
             ValueError, match="new_blocks must be a set of valid UUID4 strings."
         ):
-            block_history.update_blocks(10, set(), {"not-a-uuid"})
+            block_history.update_blocks_MUT(10, set(), {"not-a-uuid"})
 
-    def test_update_blocks_old_blocks_not_present(self, block_history: BlockHistory):
-        """Test update_blocks when old_blocks are not present."""
+    def test_update_blocks_MUT_old_blocks_not_present(
+        self, block_history: BlockHistory
+    ):
+        """Test update_blocks_MUT when old_blocks are not present."""
         non_existent_block = {str(uuid.uuid4())}
-        with pytest.raises(ValueError, match="Some old_blocks are not present"):
-            block_history.update_blocks(10, non_existent_block, set())
+        t_to_update = 10
+        with pytest.raises(
+            BlocksNotPresentError,
+            match=f"Blocks not present at timestamp {t_to_update}: "
+            f"{non_existent_block}",
+        ):
+            block_history.update_blocks_MUT(t_to_update, non_existent_block, set())
 
     def test_is_timestamp_valid(self):
         """Test the is_timestamp_valid static method."""
@@ -265,7 +279,7 @@ class TestBlockHistory:
         assert BlockHistory.is_set_of_uuid4(set()) is True
         assert BlockHistory.is_set_of_uuid4(not_a_set) is False
 
-    def test_update_blocks_inconsistent_subsequent_state(
+    def test_update_blocks_MUT_inconsistent_subsequent_state(
         self, block_history: BlockHistory, initial_blocks: set[str]
     ):
         """
@@ -277,22 +291,24 @@ class TestBlockHistory:
 
         # At t=10, remove one block
         t_later = 10
-        block_history.update_blocks(t_later, {block_to_remove_later}, set())
+        block_history.update_blocks_MUT(t_later, {block_to_remove_later}, set())
 
         # At t=5, try to remove a set of blocks including the one already removed at
         # t=10. This should cause an inconsistency when propagating the change to t=10
         msg = (
-            "Inconsistent block update detected. The following blocks were "
-            f"not present: {set([block_to_remove_later])} at timestamp {t_later}."
+            f"Inconsistent block update detected at timestamp {t_later}. "
+            f"Missing blocks: {set([block_to_remove_later])}"
         )
-        with pytest.raises(ValueError, match=msg):
-            block_history.update_blocks(5, {block_to_remove_later, other_block}, set())
+        with pytest.raises(InconsistentBlockUpdateError, match=msg):
+            block_history.update_blocks_MUT(
+                5, {block_to_remove_later, other_block}, set()
+            )
 
-    def test_update_blocks_with_previously_seen_block_raises_error(
+    def test_update_blocks_MUT_with_previously_seen_block_raises_error(
         self, block_history: BlockHistory, initial_blocks: set[str]
     ):
         """
-        Test that update_blocks raises a ValueError if new_blocks contains a block
+        Test that update_blocks_MUT raises a ValueError if new_blocks contains a block
         that has already been part of the history.
         """
         # Take one of the blocks that already exists from the initial setup
@@ -300,10 +316,9 @@ class TestBlockHistory:
 
         # Expect a ValueError because the reused_block is already in _all_blocks_set
         with pytest.raises(
-            ValueError,
-            match="Some new_blocks have already been present in the block history. "
-            f"Blocks seen before: {reused_block}",
+            BlocksAlreadySeenError,
+            match=f"Blocks already seen in BlockHistory: {reused_block}",
         ):
-            block_history.update_blocks(
+            block_history.update_blocks_MUT(
                 timestamp=10, old_blocks=set(), new_blocks=reused_block
             )

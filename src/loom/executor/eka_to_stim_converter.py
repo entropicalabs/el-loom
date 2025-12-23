@@ -647,6 +647,8 @@ class EkaToStimConverter(Converter[StimCircuitAndRegisters, StimOutputRunResult]
                     return (coords[0], 0)
                 if coords[1] == 0:
                     return (coords[0] - 0.5, 0.5)
+                # Removed error and kept this temporarily to host HGP codes until
+                # Lattice refactor
                 return coords
             case 3:
                 # For square lattice codes
@@ -654,6 +656,8 @@ class EkaToStimConverter(Converter[StimCircuitAndRegisters, StimOutputRunResult]
                     return (coords[0], coords[1])
                 if coords[2] == 0:
                     return (coords[0] + 0.5, coords[1] + 0.5)
+                # Patched up case for proper handling of Color Codes until Lattice
+                # refactor
                 if coords[2] == 2:
                     return (coords[0] + 0.05, coords[1] + 0.05)
                 raise ValueError(
@@ -878,10 +882,12 @@ class EkaToStimConverter(Converter[StimCircuitAndRegisters, StimOutputRunResult]
             "Y": "(0,1,0,0.5)",
             "Z": "(0,0,1,0.5)",
         }
+        # Get all blocks at the initial timestamp (timestamp 0)
+        initial_block_uuids = interpreted_eka.block_history.blocks_at(0)
         all_stabilizers = [
             stab
-            for block in interpreted_eka.block_history[0]
-            for stab in block.stabilizers
+            for block_uuid in initial_block_uuids
+            for stab in interpreted_eka.block_registry[block_uuid].stabilizers
         ]
 
         eka_circuit = interpreted_eka.final_circuit

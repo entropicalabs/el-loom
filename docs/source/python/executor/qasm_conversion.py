@@ -1,4 +1,4 @@
-from loom.executor import convert_circuit_to_qasm
+from loom.executor import EkaToQasmConverter
 
 # interpreted_eka: InterpretationStep
 converter = EkaToQasmConverter()

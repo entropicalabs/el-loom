@@ -1,0 +1,35 @@
+{
+  "str_init": "q = array(guppyQ.qubit() for _ in range(17))\nc = array(False for _ in range(33))",
+  "non_existing_op": {
+    "success": false,
+    "expected_exception": "ValueError"
+  },
+  "non_atomic_op": {
+    "success": false,
+    "expected_exception": "ValueError"
+  },
+  "wrong_channel_count": {
+    "success": false,
+    "expected_exception": "ValueError"
+  },
+  "single_qb_gate": {
+    "success": true,
+    "str_inst": "guppyQ.h(q[0])"
+  },
+  "two_qb_gate": {
+    "success": true,
+    "str_inst": "guppyQ.cx(q[0], q[1])"
+  },
+  "measurement_gate": {
+    "success": true,
+    "str_inst": "c[0] = guppyQSys.measure_and_reset(q[0])\nbuiltins.result('c_(0, 0, 0)_0', c[0])"
+  },
+  "reset_gate": {
+    "success": true,
+    "str_inst": "guppyQ.reset(q[0])"
+  },
+  "instruction_w_multiple_steps": {
+    "success": true,
+    "str_inst": "guppyQ.reset(q[0])\nguppyQ.x(q[0])\nguppyQ.h(q[0])\nguppyQ.s(q[0])"
+  }
+}

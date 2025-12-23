@@ -69,10 +69,12 @@ After installing, you can activate the virtual environment with the following co
    eval $(poetry env activate)
 
 
-Finally, verify the installation with Pytest.
+Finally, verify the installation with Pytest. Pytest is only installed if you included the 
+``dev`` and ``notebooks`` dependency groups while installing Loom. Run the following command to execute the test suite:
 
 .. code-block:: bash
 
+   poetry run python -m ipykernel install --user --name "env"
    poetry run pytest
 
 If all tests pass, Loom is successfully installed and you're all set to use 

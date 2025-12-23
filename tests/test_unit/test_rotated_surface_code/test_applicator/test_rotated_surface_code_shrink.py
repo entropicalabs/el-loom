@@ -44,8 +44,8 @@ class TestRotatedSurfaceCodeShrink(unittest.TestCase):
         self.rot_surf_code_2 = RotatedSurfaceCode.create(
             dx=5, dz=5, lattice=self.square_2d_lattice, unique_label="q2"
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.rot_surf_code_1,),),
+        self.base_step = InterpretationStep.create(
+            [self.rot_surf_code_1],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -63,8 +63,8 @@ class TestRotatedSurfaceCodeShrink(unittest.TestCase):
             },
         )
         # Create an initial step with a different block
-        self.other_base_step = InterpretationStep(
-            block_history=((self.rot_surf_code_2,),),
+        self.other_base_step = InterpretationStep.create(
+            [self.rot_surf_code_2],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -85,9 +85,7 @@ class TestRotatedSurfaceCodeShrink(unittest.TestCase):
     def test_shrink_consistency_checks(self):
         """Tests that the shrink operation is consistent with the block."""
         block = self.rot_surf_code_1
-        int_step = InterpretationStep(
-            block_history=((block,),),
-        )
+        int_step = InterpretationStep.create([block])
 
         for direction, add_length in product(
             ("left", "right", "top", "bottom"), (-1, 0, 6)

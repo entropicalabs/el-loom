@@ -37,5 +37,6 @@ from .executor import Executor, TargetLanguage
 from .eka_to_mimiq_converter import EkaToMimiqConverter
 from .eka_to_pennylane_converter import EkaToPennylaneConverter
 from .eka_to_qasm_converter import EkaToQasmConverter
+from .eka_to_guppylang_converter import EkaToGuppylangConverter
 from .eka_to_stim_converter import EkaToStimConverter
 from .eka_to_cudaq_converter import EkaToCudaqConverter

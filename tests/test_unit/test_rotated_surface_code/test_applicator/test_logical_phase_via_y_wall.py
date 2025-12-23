@@ -37,8 +37,8 @@ class TestLogicalPhaseViaYwall(unittest.TestCase):
     def setUp(self):
         # We need to first measure the block syndromes to get the necessary syndromes
         # for the logical phase via y-wall operation.
-        self.base_int_step = lambda block: InterpretationStep(
-            block_history=((block,),),
+        self.base_int_step = lambda block: InterpretationStep.create(
+            [block],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,

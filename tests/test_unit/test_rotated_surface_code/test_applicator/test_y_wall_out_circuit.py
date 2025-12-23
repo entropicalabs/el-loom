@@ -48,8 +48,8 @@ class TestRotatedSurfaceCodeYWallOut(unittest.TestCase):
             x_boundary=Orientation.VERTICAL,
         )
         # Get the twisted block v3z by moving the topological corner instead
-        self.base_step = InterpretationStep(
-            block_history=((self.big_block_v3z,),),
+        self.base_step = InterpretationStep.create(
+            [self.big_block_v3z],
             syndromes=tuple(
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -111,8 +111,8 @@ class TestRotatedSurfaceCodeYWallOut(unittest.TestCase):
 
     def test_y_wall_out_circuit(self):
         """Test the circuit of the y_wall_out function for a specific case."""
-        base_int_step = InterpretationStep(
-            block_history=((self.twisted_rsc_block_v3z,),),
+        base_int_step = InterpretationStep.create(
+            [self.twisted_rsc_block_v3z],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,

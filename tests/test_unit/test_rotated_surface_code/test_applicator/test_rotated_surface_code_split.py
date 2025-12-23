@@ -60,8 +60,8 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
             lattice=self.lattice,
             unique_label="big_block",
         )
-        self.base_step = InterpretationStep(
-            block_history=((self.big_block,),),
+        self.base_step = InterpretationStep.create(
+            [self.big_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -72,8 +72,8 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
                 for stab in self.big_block.stabilizers
             ],
         )
-        self.big_base_step = InterpretationStep(
-            block_history=((self.big_block,),),
+        self.big_base_step = InterpretationStep.create(
+            [self.big_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -96,8 +96,8 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
 
         # 1 - Test a horizontal split where the split position is larger than the width
         # of the block
-        interpretation_step = InterpretationStep(
-            block_history=((self.big_block,),),
+        interpretation_step = InterpretationStep.create(
+            [self.big_block],
         )
         split_op = Split("big_block", ("q1", "q2"), Orientation.HORIZONTAL, 4)
         with self.assertRaises(ValueError) as cm:
@@ -366,8 +366,8 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
                 ((0, 3, 0), (1, 3, 0), (2, 3, 0)),  # Custom X operator
             ),
         )
-        horizontal_base_step = InterpretationStep(
-            block_history=((big_block,),),
+        horizontal_base_step = InterpretationStep.create(
+            [big_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -474,20 +474,17 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
         final_step = split(
             self.big_base_step, split_op, same_timeslice=False, debug_mode=True
         )
-        (q2, q3) = final_step.block_history[-1]
 
         # Test that the blocks have been split correctly
         expected_block_1 = self.block_1
         expected_block_2 = self.block_2
+
+        (q2, q3) = final_step.get_blocks_at_index(-1)
+        if q2 != expected_block_1:
+            q2, q3 = q3, q2
+
         self.assertEqual(q2, expected_block_1)
         self.assertEqual(q3, expected_block_2)
-
-        # Test the block history
-        expected_block_history = (
-            (initial_block,),
-            (expected_block_1, expected_block_2),
-        )
-        self.assertEqual(final_step.block_history, expected_block_history)
 
         # Test that the circuit generated is correct
         q_channels = [Channel("quantum", f"(3, {i}, 0)") for i in range(3)]
@@ -634,8 +631,8 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
             split_position=3,
         )
 
-        int_step = InterpretationStep(
-            block_history=((initial_block,),),
+        int_step = InterpretationStep.create(
+            [initial_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -649,7 +646,6 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
 
         # Test that it runs without throwing an error
         final_step = split(int_step, split_op, same_timeslice=False, debug_mode=True)
-        (left_block, right_block) = final_step.block_history[-1]
 
         expected_left_block = RotatedSurfaceCode.create(
             dx=3,
@@ -665,6 +661,10 @@ class TestRotatedSurfaceCodeSplit(unittest.TestCase):
             unique_label="q2",
             position=(5, 2),
         )
+
+        (left_block, right_block) = tuple(final_step.get_blocks_at_index(-1))
+        if left_block != expected_left_block:
+            left_block, right_block = right_block, left_block
 
         # Test that the blocks have been split correctly
         self.assertEqual(left_block, expected_left_block)

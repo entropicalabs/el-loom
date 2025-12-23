@@ -28,6 +28,7 @@ from ..interpreter import InterpretationStep
 from .converter import Converter
 from .eka_to_pennylane_converter import EkaToPennylaneConverter
 from .eka_to_qasm_converter import EkaToQasmConverter
+from .eka_to_guppylang_converter import EkaToGuppylangConverter
 from .eka_to_stim_converter import EkaToStimConverter
 from .eka_to_mimiq_converter import EkaToMimiqConverter
 from .eka_to_cudaq_converter import EkaToCudaqConverter
@@ -38,6 +39,7 @@ class TargetLanguage(Enum):
 
     MIMIQ = EkaToMimiqConverter
     OPEN_QASM3 = EkaToQasmConverter
+    GUPPYLANG = EkaToGuppylangConverter
     STIM = EkaToStimConverter
     PENNYLANE = partial(EkaToPennylaneConverter, is_catalyst=False)
     PENNYLANE_CATALYST = partial(EkaToPennylaneConverter, is_catalyst=True)

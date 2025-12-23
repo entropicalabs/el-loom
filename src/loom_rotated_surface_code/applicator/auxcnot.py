@@ -110,7 +110,7 @@ def auxcnot(
     aux_unique_label = f"{grown_control.unique_label}_aux"
     # Ensure the auxiliary block has a unique label
     if aux_unique_label in [
-        block.unique_label for block in interpretation_step.block_history[-1]
+        block.unique_label for block in interpretation_step.get_blocks_at_index(-1)
     ]:
         aux_unique_label = str(uuid4())
 

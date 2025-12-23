@@ -26,6 +26,7 @@ from .converter import Converter, OpAndTargetToInstrCallable, OpSignature
 from .op_signature import (
     ALL_EKA_OP_SIGNATURES,
     BOOL_LOGIC_OP_SIGNATURE,
+    NONCLIFFORD_GATES_SIGNATURE,
     CONTROL_FLOW_OP_SIGNATURE,
     USUAL_QUANTUM_GATES,
     UTILS_SIGNATURE,
@@ -139,6 +140,7 @@ class EkaToCudaqConverter(Converter[CudaqProgramAndRegister, Any]):
             "y": "y",
             "z": "z",
             "h": "h",
+            "t": "t",
             "phase": "s",
             "phaseinv": ["z", "s"],
             "cnot": "cx",
@@ -174,7 +176,7 @@ class EkaToCudaqConverter(Converter[CudaqProgramAndRegister, Any]):
 
         return {
             op.name: partial(op_type_handlers[op.op_type], op=eka_to_cudaq_ops[op.name])
-            for op in USUAL_QUANTUM_GATES
+            for op in USUAL_QUANTUM_GATES | NONCLIFFORD_GATES_SIGNATURE
         } | {
             op.name: partial(op_type_handlers[op.op_type], op=op.name)
             for op in CONTROL_FLOW_OP_SIGNATURE

@@ -492,7 +492,7 @@ class Block:  # pylint: disable=too-many-instance-attributes,too-many-public-met
     @property
     def data_qubits(self) -> tuple[tuple[int, ...], ...]:
         """
-        Return the set of all data qubits in the block.
+        Return a tuple of all data qubits in the block.
 
         Returns
         -------

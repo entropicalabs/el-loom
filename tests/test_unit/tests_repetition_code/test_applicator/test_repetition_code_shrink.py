@@ -77,8 +77,8 @@ class TestRepetitionCodeShrink(
         self.rep_code_dict = {"X": self.phaseflip_code, "Z": self.bitflip_code}
 
         self.base_step_dict = {
-            check: InterpretationStep(
-                block_history=((code,),),
+            check: InterpretationStep.create(
+                [code],
                 syndromes=(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -127,8 +127,8 @@ class TestRepetitionCodeShrink(
             logical_z_operators=[PauliOperator("Z", ((0, 0),))],
             unique_label="q1",
         )
-        input_step = InterpretationStep(
-            block_history=((invalid_block,),),
+        input_step = InterpretationStep.create(
+            [invalid_block],
         )
 
         shrink_op = Shrink(
@@ -153,8 +153,8 @@ class TestRepetitionCodeShrink(
                 direction=Direction.LEFT,
                 length=length,
             )
-            input_step = InterpretationStep(
-                block_history=((self.bitflip_code,),),
+            input_step = InterpretationStep.create(
+                [self.bitflip_code],
             )
 
             err_msg_length = "Shrink size is too large."
@@ -171,8 +171,8 @@ class TestRepetitionCodeShrink(
                 direction=direction,
                 length=1,
             )
-            input_step = InterpretationStep(
-                block_history=((self.bitflip_code,),),
+            input_step = InterpretationStep.create(
+                [self.bitflip_code],
             )
 
             err_msg_direction = (

@@ -78,8 +78,8 @@ class TestRepetitionCodeSplit(
         self.rep_code_dict = {"X": self.phaseflip_code, "Z": self.bitflip_code}
 
         self.base_step_dict = {
-            check: InterpretationStep(
-                block_history=((code,),),
+            check: InterpretationStep.create(
+                initial_blocks=(code,),
                 syndromes=tuple(
                     Syndrome(
                         stabilizer=stab.uuid,
@@ -114,9 +114,7 @@ class TestRepetitionCodeSplit(
             logical_z_operators=[PauliOperator("Z", ((0, 0),))],
             unique_label="q1",
         )
-        input_step = InterpretationStep(
-            block_history=((invalid_block,),),
-        )
+        input_step = InterpretationStep.create(initial_blocks=(invalid_block,))
 
         split_op = Split(
             input_block_name=invalid_block.unique_label,
@@ -136,8 +134,8 @@ class TestRepetitionCodeSplit(
         outside_chain_positions = [self.distance + self.position]
         boundary_positions = [self.distance - 1]
         single_qubit_position = [1, self.distance - 2]
-        input_step = InterpretationStep(
-            block_history=((self.bitflip_code,),),
+        input_step = InterpretationStep.create(
+            initial_blocks=(self.bitflip_code,),
         )
 
         for split_position in outside_chain_positions:
@@ -156,8 +154,8 @@ class TestRepetitionCodeSplit(
             self.assertEqual(str(cm.exception), err_msg)
 
         for split_position in boundary_positions:
-            input_step = InterpretationStep(
-                block_history=((self.bitflip_code,),),
+            input_step = InterpretationStep.create(
+                initial_blocks=(self.bitflip_code,),
             )
             err_msg = "Split position cannot be at the edge of the chain."
             split_op = Split(
@@ -171,8 +169,8 @@ class TestRepetitionCodeSplit(
             self.assertEqual(str(cm.exception), err_msg)
 
         for split_position in single_qubit_position:
-            input_step = InterpretationStep(
-                block_history=((self.bitflip_code,),),
+            input_step = InterpretationStep.create(
+                initial_blocks=(self.bitflip_code,),
             )
             err_msg = "Split has to partition chain in units of at least two qubits."
             split_op = Split(
@@ -193,8 +191,8 @@ class TestRepetitionCodeSplit(
             orientation=Orientation.HORIZONTAL,
             split_position=2,
         )
-        input_step = InterpretationStep(
-            block_history=((self.bitflip_code,),),
+        input_step = InterpretationStep.create(
+            initial_blocks=(self.bitflip_code,),
         )
         with self.assertRaises(ValueError) as cm:
             _ = split_consistency_check(input_step, split_op)
@@ -541,7 +539,13 @@ class TestRepetitionCodeSplit(
                 new_label=f"out_{repetition_code.unique_label}_2",
             )
 
-            (split_block_1, split_block_2) = final_step.block_history[-1]
+            split_blocks = final_step.get_blocks_at_index(-1)
+            if split_blocks[0] == manual_split_block_1:
+                split_block_1 = split_blocks[0]
+                split_block_2 = split_blocks[1]
+            else:
+                split_block_1 = split_blocks[1]
+                split_block_2 = split_blocks[0]
 
             self.assertEqual(split_block_1, manual_split_block_1)
             self.assertEqual(split_block_2, manual_split_block_2)

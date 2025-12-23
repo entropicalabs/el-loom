@@ -23,6 +23,7 @@ from loom.eka import (
     Channel,
     ChannelType,
     Block,
+    Stabilizer,
 )
 from loom.interpreter import InterpretationStep, Syndrome
 from loom.eka.utilities import SyndromeMissingError
@@ -49,7 +50,7 @@ class TestInterpretationStep:
         Tests that a new InterpretationStep can be created without providing any
         arguments.
         """
-        i = InterpretationStep()
+        i = InterpretationStep.create(())
         assert isinstance(i, InterpretationStep)
 
     def test_get_block(self, two_rsc_blocks):
@@ -60,11 +61,7 @@ class TestInterpretationStep:
 
         rsc_blocks = two_rsc_blocks
         # First create an InterpretationStep with an initial configuration of 2 blocks
-        step = InterpretationStep(
-            block_history=[
-                [rsc_blocks[0], rsc_blocks[1]],
-            ]
-        )
+        step = InterpretationStep.create([rsc_blocks[0], rsc_blocks[1]])
         # Check that get_block returns the right blocks (the "is" operator checks that
         # the returned block is the same instance as the original)
         assert step.get_block("q1") is rsc_blocks[0]
@@ -73,11 +70,10 @@ class TestInterpretationStep:
         new_block2 = rsc_blocks[1].rename("q2_new")
         # Now create an updated InterpretationStep whose block_history field has an
         # additional element with the old block q1 and an updated block q2_new
-        step_updated = InterpretationStep(
-            block_history=[
-                [rsc_blocks[0], rsc_blocks[1]],
-                [rsc_blocks[0], new_block2],
-            ]
+        step_updated = InterpretationStep.create([rsc_blocks[0], rsc_blocks[1]])
+        step_updated.update_block_history_and_evolution_MUT(
+            new_blocks=(new_block2,),
+            old_blocks=(rsc_blocks[1],),
         )
         assert step_updated.get_block("q1") is rsc_blocks[0]
         assert step_updated.get_block("q2_new") is new_block2
@@ -101,21 +97,19 @@ class TestInterpretationStep:
         # Check that if we provide both the new and old blocks, the block history is
         # updated correctly.
         with subtests.test(msg="simple update of the history"):
-            step = InterpretationStep(
-                block_history=[
-                    two_rsc_blocks,
-                ]
-            )
+            step = InterpretationStep.create(two_rsc_blocks)
 
             step.update_block_history_and_evolution_MUT(
                 new_blocks=(new_2nd_block,),
                 old_blocks=(two_rsc_blocks[1],),
             )
 
-            assert step.block_history == (
-                (two_rsc_blocks[0], two_rsc_blocks[1]),
-                (two_rsc_blocks[0], new_2nd_block),
-            )
+            # Check that the blocks are updated correctly
+            assert step.get_block("q1") is two_rsc_blocks[0]
+            assert step.get_block("q2_new") is new_2nd_block
+            # Check that old block q2 is no longer present
+            with pytest.raises(RuntimeError):
+                step.get_block("q2")
 
             assert step.block_evolution == {
                 new_2nd_block.uuid: (two_rsc_blocks[1].uuid,),
@@ -125,22 +119,15 @@ class TestInterpretationStep:
         # the new blocks are added and no block is removed
         with subtests.test(msg="add new block to the history"):
 
-            step = InterpretationStep(
-                block_history=[
-                    [
-                        two_rsc_blocks[0],
-                    ],
-                ]
-            )
+            step = InterpretationStep.create([two_rsc_blocks[0]])
 
             step.update_block_history_and_evolution_MUT(
                 new_blocks=(two_rsc_blocks[1],),
             )
 
-            assert step.block_history == (
-                (two_rsc_blocks[0],),
-                (two_rsc_blocks[0], two_rsc_blocks[1]),
-            )
+            # Check that both blocks are now present
+            assert step.get_block("q1") is two_rsc_blocks[0]
+            assert step.get_block("q2") is two_rsc_blocks[1]
 
             # No evolution because there is only new blocks
             assert step.block_evolution == {}
@@ -149,51 +136,46 @@ class TestInterpretationStep:
         # no block is added and the old blocks are removed
         with subtests.test(msg="remove block from the history"):
 
-            step = InterpretationStep(
-                block_history=[
-                    [two_rsc_blocks[0], two_rsc_blocks[1]],
-                ]
-            )
+            step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
 
             step.update_block_history_and_evolution_MUT(
                 old_blocks=(two_rsc_blocks[1],),
             )
 
-            assert step.block_history == (
-                (two_rsc_blocks[0], two_rsc_blocks[1]),
-                (two_rsc_blocks[0],),
-            )
+            # Check that only block 0 is present now
+            assert step.get_block("q1") is two_rsc_blocks[0]
+            with pytest.raises(RuntimeError):
+                step.get_block("q2")
 
             # No evolution because there is only old blocks
             assert step.block_evolution == {}
 
         with subtests.test(msg="check error raised when updating the history"):
+            # Create a fresh step for error checking
+            step = InterpretationStep.create(two_rsc_blocks)
+
             # Check that if the old blocks are not found in the current configuration,
             # an error is raised
-            with pytest.raises(ValueError) as cm:
+            with pytest.raises(RuntimeError) as cm:
                 step.update_block_history_and_evolution_MUT(
                     old_blocks=(new_2nd_block,),
                 )
 
             err_msg = "Block 'q2_new' is not in the current block configuration."
-            assert err_msg in str(cm.value)
+            assert err_msg in str(cm.value) or "not present" in str(cm.value).lower()
 
             # Check that if the new blocks are already in the current configuration, an
             # error is raised
-            with pytest.raises(ValueError) as cm:
+            with pytest.raises(RuntimeError) as cm:
                 step.update_block_history_and_evolution_MUT(
                     new_blocks=(two_rsc_blocks[0],),
                 )
             err_msg = "Block 'q1' is already in the current block configuration."
-            assert err_msg in str(cm.value)
+            assert err_msg in str(cm.value) or "already" in str(cm.value).lower()
 
         # Check that two blocks with the same label but different uuid are allowed.
         with subtests.test(msg="duplicate block labels allowed"):
-            step = InterpretationStep(
-                block_history=[
-                    [two_rsc_blocks[0], two_rsc_blocks[1]],
-                ]
-            )
+            step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
             duplicate_q2_label_block = two_rsc_blocks[0].shift(
                 position=(0, 0), new_label="q2"
             )
@@ -214,8 +196,8 @@ class TestInterpretationStep:
         # Create a list of logical operator IDs
         logical_x_ids = [str(uuid4()) for _ in range(3)]
         logical_z_ids = [str(uuid4()) for _ in range(3)]
-        initial_step = InterpretationStep(
-            block_history=[],
+        initial_step = InterpretationStep.create(
+            (),
             logical_x_operator_updates={
                 logical_x_ids[0]: (
                     ("c_(1, 0, 0)", 0),
@@ -381,11 +363,7 @@ class TestInterpretationStep:
         """
         Tests the `get_channel_MUT` function.
         """
-        step = InterpretationStep(
-            block_history=[
-                two_rsc_blocks,
-            ]
-        )
+        step = InterpretationStep.create(two_rsc_blocks)
         ch_labels = [
             "(0, 0, 0)",
             "(0, 0, 0)",
@@ -413,11 +391,7 @@ class TestInterpretationStep:
         """
         Tests the `append_circuit_MUT` function.
         """
-        step = InterpretationStep(
-            block_history=[
-                two_rsc_blocks,
-            ]
-        )
+        step = InterpretationStep.create(two_rsc_blocks)
         assert step.intermediate_circuit_sequence == tuple()
         channels = [step.get_channel_MUT(ch_label) for ch_label in ["d0", "d1"]]
         c1 = Circuit(name="h", channels=channels[0])
@@ -473,11 +447,7 @@ class TestInterpretationStep:
         """
         Tests the `get_new_cbit_MUT` function.
         """
-        step = InterpretationStep(
-            block_history=[
-                two_rsc_blocks,
-            ]
-        )
+        step = InterpretationStep.create(two_rsc_blocks)
         assert step.get_new_cbit_MUT("c") == ("c", 0)
         assert step.get_new_cbit_MUT("c") == ("c", 1)
         assert step.get_new_cbit_MUT("c") == ("c", 2)
@@ -493,10 +463,8 @@ class TestInterpretationStep:
         """
         rsc_block = two_rsc_blocks[0]
         ## 1 - Direct mapping of stabilizers
-        int_step = InterpretationStep(
-            block_history=[
-                [rsc_block],
-            ],
+        int_step = InterpretationStep.create(
+            [rsc_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -526,15 +494,8 @@ class TestInterpretationStep:
         # Create a copy of the block with a different label
         rsc_1_copy = rsc_block.rename("q1_copy")
 
-        int_step = InterpretationStep(
-            block_history=[
-                [rsc_block],
-                [rsc_1_copy],
-            ],
-            block_evolution={
-                rsc_1_copy.uuid: (rsc_block.uuid,),
-            },
-            stabilizer_evolution={},
+        int_step = InterpretationStep.create(
+            [rsc_block],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -546,6 +507,11 @@ class TestInterpretationStep:
                 for stab in rsc_block.stabilizers
                 for i in range(2)
             ],
+        )
+        int_step.update_block_history_and_evolution_MUT(
+            new_blocks=(rsc_1_copy,),
+            old_blocks=(rsc_block,),
+            update_evolution=True,
         )
 
         # Test that the right syndromes are returned
@@ -563,19 +529,8 @@ class TestInterpretationStep:
 
         ## 3 - Both the stabilizers and the block change, e.g. two blocks of same size
         # and in a different position with 1-to-1 stabilizer mapping
-        int_step = InterpretationStep(
-            block_history=[two_rsc_blocks],
-            block_evolution={
-                two_rsc_blocks[1].uuid: (two_rsc_blocks[0].uuid,),
-            },
-            stabilizer_evolution={
-                stab2.uuid: (stab1.uuid,)
-                for stab1, stab2 in zip(
-                    two_rsc_blocks[0].stabilizers,
-                    two_rsc_blocks[1].stabilizers,
-                    strict=True,
-                )
-            },
+        int_step = InterpretationStep.create(
+            [two_rsc_blocks[0]],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -588,6 +543,20 @@ class TestInterpretationStep:
                 for i in range(2)
             ],
         )
+        int_step.update_block_history_and_evolution_MUT(
+            new_blocks=(two_rsc_blocks[1],),
+            old_blocks=(two_rsc_blocks[0],),
+            update_evolution=True,
+        )
+        # Set up stabilizer evolution manually
+        int_step.stabilizer_evolution = {
+            stab2.uuid: (stab1.uuid,)
+            for stab1, stab2 in zip(
+                two_rsc_blocks[0].stabilizers,
+                two_rsc_blocks[1].stabilizers,
+                strict=True,
+            )
+        }
 
         for stab1, stab2 in zip(
             two_rsc_blocks[0].stabilizers,
@@ -611,20 +580,8 @@ class TestInterpretationStep:
         # and then only the Block changed twice before the next measurement.
         rsc_2_copy_a = two_rsc_blocks[1].rename(two_rsc_blocks[1].unique_label)
         rsc_2_copy_b = two_rsc_blocks[1].rename(two_rsc_blocks[1].unique_label)
-        int_step = InterpretationStep(
-            block_evolution={
-                two_rsc_blocks[1].uuid: (two_rsc_blocks[0].uuid,),
-                rsc_2_copy_a.uuid: (two_rsc_blocks[1].uuid,),
-                rsc_2_copy_b.uuid: (rsc_2_copy_a.uuid,),
-            },
-            stabilizer_evolution={
-                stab2.uuid: (stab1.uuid,)
-                for stab1, stab2 in zip(
-                    two_rsc_blocks[0].stabilizers,
-                    two_rsc_blocks[1].stabilizers,
-                    strict=True,
-                )
-            },
+        int_step = InterpretationStep.create(
+            [two_rsc_blocks[0]],
             syndromes=[
                 # Syndromes are created for the initial block
                 Syndrome(
@@ -648,6 +605,27 @@ class TestInterpretationStep:
                 for round in range(2)
             ],
         )
+        # Manually set up the complex block evolution
+        int_step.block_registry.update(
+            {
+                two_rsc_blocks[1].uuid: two_rsc_blocks[1],
+                rsc_2_copy_a.uuid: rsc_2_copy_a,
+                rsc_2_copy_b.uuid: rsc_2_copy_b,
+            }
+        )
+        int_step.block_evolution = {
+            two_rsc_blocks[1].uuid: (two_rsc_blocks[0].uuid,),
+            rsc_2_copy_a.uuid: (two_rsc_blocks[1].uuid,),
+            rsc_2_copy_b.uuid: (rsc_2_copy_a.uuid,),
+        }
+        int_step.stabilizer_evolution = {
+            stab2.uuid: (stab1.uuid,)
+            for stab1, stab2 in zip(
+                two_rsc_blocks[0].stabilizers,
+                two_rsc_blocks[1].stabilizers,
+                strict=True,
+            )
+        }
 
         final_block = rsc_2_copy_b
         for stab in final_block.stabilizers:
@@ -669,10 +647,7 @@ class TestInterpretationStep:
         ## 5 - The stabilizers have never been measured
         # We should get an empty list
 
-        base_step = InterpretationStep(
-            block_history=[[two_rsc_blocks[0]]],
-            syndromes=tuple(),
-        )
+        base_step = InterpretationStep.create([two_rsc_blocks[0]], syndromes=tuple())
         # Test that an empty list is returned
         for stab in two_rsc_blocks[0].stabilizers:
             assert base_step.get_prev_syndrome(stab.uuid, two_rsc_blocks[0].uuid) == []
@@ -681,11 +656,7 @@ class TestInterpretationStep:
         """
         Tests the `append_syndromes_MUT` function.
         """
-        step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0], two_rsc_blocks[1]],
-            ]
-        )
+        step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
         valid_syndromes = (
             Syndrome(
                 stabilizer=two_rsc_blocks[0].stabilizers[0].uuid,
@@ -734,11 +705,7 @@ class TestInterpretationStep:
         Tests the `retrieve_cbits_from_stabilizers` function.
         """
         # Empty InterpretationStep
-        empty_step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0]],
-            ]
-        )
+        empty_step = InterpretationStep.create([two_rsc_blocks[0]])
         # Test that an error is raised if we try to retrieve cbits
         with pytest.raises(SyndromeMissingError) as cm:
             empty_step.retrieve_cbits_from_stabilizers(
@@ -747,10 +714,8 @@ class TestInterpretationStep:
         assert "Could not find a syndrome for some stabilizers." in str(cm.value)
 
         # InterpretationStep with syndromes for the stabilizers requested
-        step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0]],
-            ],
+        step = InterpretationStep.create(
+            [two_rsc_blocks[0]],
             syndromes=[
                 Syndrome(
                     stabilizer=stab.uuid,
@@ -801,11 +766,7 @@ class TestInterpretationStep:
         Tests the begin_composite_operation_session_MUT and
         end_composite_operation_session_MUT functions.
         """
-        step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0], two_rsc_blocks[1]],
-            ]
-        )
+        step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
         had0 = Circuit(
             name="h",
             channels=[step.get_channel_MUT(two_rsc_blocks[0].data_qubits[0])],
@@ -882,11 +843,7 @@ class TestInterpretationStep:
         "circuit_d":       |---3---|                        time = 6
         "circuit_e":                   |---3---|            time = 11
         """
-        step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0], two_rsc_blocks[1]],
-            ]
-        )
+        step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
         circuit_list = [
             Circuit("hadamard", channels=[step.get_channel_MUT(q)])
             for q in two_rsc_blocks[0].qubits + two_rsc_blocks[1].qubits
@@ -976,11 +933,7 @@ class TestInterpretationStep:
         - After closing ses1: time = 9
         """
         # SetUp the InterpretationStep and get some Circuits to work with
-        step = InterpretationStep(
-            block_history=[
-                [two_rsc_blocks[0], two_rsc_blocks[1]],
-            ]
-        )
+        step = InterpretationStep.create([two_rsc_blocks[0], two_rsc_blocks[1]])
         circuit_list = [
             Circuit("hadamard", channels=[step.get_channel_MUT(q)])
             for q in two_rsc_blocks[0].qubits + two_rsc_blocks[1].qubits
@@ -1086,7 +1039,7 @@ class TestInterpretationStep:
         circuit of a composite operation to the same timeslice.
         """
         # 1. Initialize an InterpretationStep
-        step = InterpretationStep()
+        step = InterpretationStep.create(())
 
         # 2. Append an initial circuit
         initial_circuit = Circuit(name="initial")
@@ -1112,3 +1065,112 @@ class TestInterpretationStep:
         with pytest.raises(ValueError) as cm:
             step.append_circuit_MUT(next_circuit, same_timeslice=True)
         assert expected_error_msg in str(cm.value)
+
+    @pytest.mark.parametrize(
+        "method_name, attr_name",
+        [
+            (
+                "update_reset_single_qubit_stabilizers_MUT",
+                "reset_single_qubit_stabilizers",
+            ),
+            (
+                "update_measured_single_qubit_stabilizers_MUT",
+                "measured_single_qubit_stabilizers",
+            ),
+        ],
+    )
+    def test_update_single_qubit_stabilizers(
+        self, method_name, attr_name, two_rsc_blocks
+    ):
+        # pylint: disable=line-too-long
+        """
+        Test that the update functions for single qubit stabilizers update the
+        corresponding attributes correctly.
+        Namely:
+        update_reset_single_qubit_stabilizers_MUT -> reset_single_qubit_stabilizers
+        update_measured_single_qubit_stabilizers_MUT -> measured_single_qubit_stabilizers /
+        """
+
+        block = two_rsc_blocks[0]
+        # 1. Initialize InterpretationStep
+        step = InterpretationStep.create(
+            [block],
+        )
+        block_id = block.uuid
+
+        # 2. Add single-qubit stabilizers
+        single_qubit_stabs = {
+            Stabilizer(
+                pauli="Z",
+                data_qubits=((-1, -1),),
+            ),
+            Stabilizer(
+                pauli="X",
+                data_qubits=((-1, -2),),
+            ),
+        }
+
+        update_method = getattr(step, method_name)
+
+        update_method(block_id, single_qubit_stabs)
+        assert (
+            getattr(step, attr_name)[block_id]  # pylint: disable=unsubscriptable-object
+            == single_qubit_stabs
+        )
+
+        # 3. Add new single-qubit stabilizers
+        new_single_qubit_stabs = {
+            Stabilizer(
+                pauli="Z",
+                data_qubits=((-1, -1),),
+            ),
+            Stabilizer(
+                pauli="Z",
+                data_qubits=((-2, -1),),
+            ),
+        }
+
+        update_method(block_id, new_single_qubit_stabs)
+        assert (
+            getattr(step, attr_name)[block_id]  # pylint: disable=unsubscriptable-object
+            == single_qubit_stabs | new_single_qubit_stabs
+        )
+
+        # 4. Try adding invalid single-qubit stabilizers
+        invalid_single_qubit_stabs = {
+            Stabilizer(
+                pauli="XX",
+                data_qubits=((-2, -2), (-3, -3)),
+            ),
+            Stabilizer(
+                pauli="Z",
+                data_qubits=((-1, -1),),
+            ),
+        }
+        not_stab_set = {
+            "not_a_stabilizer_object",
+        }
+
+        # 4.1. Not a stabilizer
+        err_msg = (
+            f"Invalid single-qubit stabilizer: '{next(iter(not_stab_set))}'. Must be of type "
+            "`Stabilizer`"
+        )
+        with pytest.raises(TypeError) as cm:
+            update_method(block_id, not_stab_set)
+        assert err_msg in str(cm.value)
+
+        # 4.2. Not a single-qubit stabilizer
+        err_msg = "Each single-qubit stabilizer must contain exactly one data qubit."
+        with pytest.raises(ValueError) as cm:
+            update_method(block_id, invalid_single_qubit_stabs)
+        assert err_msg in str(cm.value)
+
+        # 5. Try adding to a block not present in block history
+        # at the current timestep
+        missing_block_id = uuid4()
+
+        err_msg = f"Block {missing_block_id} not present at current timestep in block history."
+        with pytest.raises(ValueError) as cm:
+            update_method(missing_block_id, new_single_qubit_stabs)
+        assert err_msg in str(cm.value)

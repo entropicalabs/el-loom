@@ -72,6 +72,10 @@ class Circuit:
 
         The list of channels involved in the circuit
 
+    duration: Optional[int]
+        Duration of the circuit in number of time steps. If not provided, defaults to
+        ``None``.
+
     id: str
         The unique identifier of the circuit
     """

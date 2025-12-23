@@ -44,7 +44,7 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
     """
 
     def setUp(self):
-        self.base_step = InterpretationStep()
+        self.base_step = InterpretationStep.create([])
 
         self.square_2d_lattice = Lattice.square_2d((10, 20))
         self.eka_no_blocks = Eka(self.square_2d_lattice)
@@ -353,7 +353,7 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
             level="DEBUG",
         ) as cm:
             _ = CodeApplicator(input_eka).apply(
-                InterpretationStep(block_history=((repc,),)),
+                InterpretationStep.create((repc,)),
                 MeasureBlockSyndromes(repc.unique_label),
                 same_timeslice=True,
                 debug_mode=False,
@@ -573,9 +573,7 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         )
         meas_block_op = MeasureBlockSyndromes(rsc_block.unique_label)
         input_eka = Eka(lattice, blocks=[rsc_block], operations=[meas_block_op])
-        base_step = InterpretationStep(
-            block_history=((rsc_block,),),
-        )
+        base_step = InterpretationStep.create((rsc_block,))
         output_step = CodeApplicator(input_eka).apply(
             deepcopy(base_step), meas_block_op, same_timeslice=False, debug_mode=True
         )
@@ -598,7 +596,7 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
                     )
                     for gate in timestep
                 }
-                for timestep in meas_synd_circuit.circuit
+                for timestep in meas_synd_circuit.circuit[0][0].circuit
             ],
             [
                 {
@@ -661,7 +659,8 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
                     )
                     for gate in timestep
                 }
-                for timestep in meas_synd_circuit_2.circuit
+                for timestep in meas_synd_circuit_2.circuit[0][0].circuit
+                + meas_synd_circuit_2.circuit[8][0].circuit
             ],
             [
                 {
@@ -706,9 +705,7 @@ class TestMeasureBlockSyndromes(unittest.TestCase):
         rsc_block = self.rot_surf_code_1
         meas_block_op = MeasureBlockSyndromes(rsc_block.unique_label, n_cycles=n_cycles)
         input_eka = Eka(lattice, blocks=[rsc_block], operations=[meas_block_op])
-        base_step = InterpretationStep(
-            block_history=((rsc_block,),),
-        )
+        base_step = InterpretationStep.create((rsc_block,))
 
         output_step = CodeApplicator(input_eka).apply(
             base_step, meas_block_op, same_timeslice=False, debug_mode=True
